@@ -18,7 +18,7 @@ mpl.use('TkAgg')  # interactive mode works with this, pick one
 def computeSource(sii, patt=True):
     '''
 
-    :param sii: Number of simulation
+    :param sii: Index of the simulation
     :param patt: is the main branch
     :return: Creates a rupture process and write it to hdf5 files
     '''
