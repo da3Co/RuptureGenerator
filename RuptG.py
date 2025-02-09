@@ -15,7 +15,7 @@ import h5py
 
 def computeGeometryParams(niter, Mw, Sty, SuD, aveStri, randLW, randOri):
     '''
-
+    computes the locations of the subfaults based on the orientation and dimensions of the fault
     :param niter: -int- Number of realizations
     :param Mw: -float-
     :param Sty: -string- Style of the source SS: Strike-Slip SD:Slip-Dip
@@ -148,12 +148,12 @@ def computeSlip(Mo, Dks, Dkd, Vs, Rho, dll, dww, loc, ade, D_u, cdd, ws, lTapSlp
 
 def computeVKParams(LI, WI, Mw, Sty):
     '''
-
+    Compute correlation lengths base on Mai and Beroza, 2002
     :param LI: -array- Length of each realization
     :param WI: -array- Width of each realization
     :param Mw: -float- Magnitude earthquake
     :param Sty: -string- Style of the source SS: Strike-Slip SD:Slip-Dip
-    :return:
+    :return: correlation lengths in [strike, dip] directions
     '''
     niter = LI.shape[0]
     if Sty == 'SS':
