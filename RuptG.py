@@ -12,10 +12,13 @@ from scipy.optimize import fsolve, minimize
 from fteikpy import Eikonal2D
 from functools import partial
 import h5py
-
-def computeGeometryParams(niter, Mw, Sty, SuD, aveStri, randLW, randOri):
+import pickle
+import matplotlib.pyplot as plt
+import matplotlib as mpl
+mpl.use('TkAgg')  # interactive mode works with this, pick one
+def computeGeometryParams(niter, Mw, Sty, SuD, aveStri, randLW, randOri, fa=1.15):
     '''
-    computes the locations of the subfaults based on the orientation and dimensions of the fault
+
     :param niter: -int- Number of realizations
     :param Mw: -float-
     :param Sty: -string- Style of the source SS: Strike-Slip SD:Slip-Dip
@@ -23,12 +26,13 @@ def computeGeometryParams(niter, Mw, Sty, SuD, aveStri, randLW, randOri):
     :param aveStri: -float- Avergage Strike
     :param randLW: -boolean- Allow L and W randomness
     :param randOri: -boolean- Allow strike, dip and rake randomness
+    :param randOri: -float- Amplification of the lengths
     :return:
     '''
     #  Dimension Randomness
     if Sty == 'SS':
-        L_I = 1.15 * 10 ** (-2.943 + 0.681 * Mw)
-        W_I = 1.15 * 10 ** (-0.543 + 0.261 * Mw)
+        L_I = fa * 10 ** (-2.943 + 0.681 * Mw)
+        W_I = fa * 10 ** (-0.543 + 0.261 * Mw)
         if randLW[0]:
             LI = L_I * 10 ** (np.random.randn(niter) * 0.151)
         else:
@@ -45,8 +49,8 @@ def computeGeometryParams(niter, Mw, Sty, SuD, aveStri, randLW, randOri):
             Lrake = 100 * np.random.rand(niter) + -140
     elif Sty == 'SD':
         if SuD == 'CR':
-            L_I = 1.15 * 10 ** (-2.693 + 0.614 * Mw)
-            W_I = 1.15 * 10 ** (-1.669 + 0.435 * Mw)
+            L_I = fa * 10 ** (-2.693 + 0.614 * Mw)
+            W_I = fa * 10 ** (-1.669 + 0.435 * Mw)
             if randLW[0]:
                 LI = L_I * 10 ** (np.random.randn(niter) * 0.083)
             else:
@@ -62,8 +66,8 @@ def computeGeometryParams(niter, Mw, Sty, SuD, aveStri, randLW, randOri):
                 Lrake = 110 * np.random.rand(niter) + 70
         elif SuD == 'SU':
 
-            L_I = 1.15 * 10 ** (-0.880 + 0.366 * Mw)  # 10 ** (-2.412 + 0.583 * Mw)
-            W_I = 1.15 * 10 ** (-2.412 + 0.583 * Mw)  # 10 ** (-0.880 + 0.366 * Mw)
+            L_I = fa * 10 ** (-0.880 + 0.366 * Mw)  # 10 ** (-2.412 + 0.583 * Mw)
+            W_I = fa * 10 ** (-2.412 + 0.583 * Mw)  # 10 ** (-0.880 + 0.366 * Mw)
             if randLW[0]:
                 LI = L_I * 10 ** (np.random.randn(niter) * 0.107)
                 LI[LI < L_I * 10 ** (- 2.5 * 0.107)] = L_I
@@ -81,8 +85,8 @@ def computeGeometryParams(niter, Mw, Sty, SuD, aveStri, randLW, randOri):
                 Lstri = np.ones(niter) * aveStri
                 Lrake = 110 * np.random.rand(niter) + 70
         else:  # Normal events
-            L_I = 1.15 * 10 ** (-1.722 + 0.485 * Mw)
-            W_I = 1.15 * 10 ** (-0.829 + 0.323 * Mw)
+            L_I = fa * 10 ** (-1.722 + 0.485 * Mw)
+            W_I = fa * 10 ** (-0.829 + 0.323 * Mw)
             if randLW[0]:
                 LI = L_I * 10 ** (np.random.randn(niter) * 0.128)
             else:
@@ -121,6 +125,17 @@ def computeRiseTime(Mo, L, W, Dks, Dkd, Vs, Rho, dll, dww, loc, ade, D_u, lTapSl
 
     return ss
 
+def computeSmallScalUni(timi):
+    '''
+    Compute the small scale variation between Yoffe function and a realistic STF, one vector time
+    :param timi: time definition, linear equal spaced
+    :return:
+    '''
+    ktt = np.fft.rfftfreq(timi.size, timi[1]-timi[0])
+
+    theta0 = np.random.rand(ktt.size) * 2 * np.pi
+    phaseT = np.exp(theta0 * 1j)
+    return RF_SCV_1dVK(ktt, 0.089, phaseT)
 def computeSlip(Mo, Dks, Dkd, Vs, Rho, dll, dww, loc, ade, D_u, cdd, ws, lTapSlp=0.8, cmax=4000):
     val = True
     ccS = -1
@@ -148,12 +163,12 @@ def computeSlip(Mo, Dks, Dkd, Vs, Rho, dll, dww, loc, ade, D_u, cdd, ws, lTapSlp
 
 def computeVKParams(LI, WI, Mw, Sty):
     '''
-    Compute correlation lengths base on Mai and Beroza, 2002
+
     :param LI: -array- Length of each realization
     :param WI: -array- Width of each realization
     :param Mw: -float- Magnitude earthquake
     :param Sty: -string- Style of the source SS: Strike-Slip SD:Slip-Dip
-    :return: correlation lengths in [strike, dip] directions
+    :return:
     '''
     niter = LI.shape[0]
     if Sty == 'SS':
@@ -210,9 +225,16 @@ def estimateVpeak(Slip, Trr, tac):
     return 0.94818906 * Slip / (tac ** 0.55133027 * Trr ** 0.45673853)
 
 def RF_SCV_1dVK(ktt, std, phase):
+    '''
+
+    :param ktt: frequency
+    :param std: standard deviation final SCV
+    :param phase: phase to create SCV (e^...)
+    :return:
+    '''
     VK = 1 / (1 + (ktt * 0.53805486) ** 2) ** (0.5 * (0.76413772 + 0.5))
     nn = np.fft.irfft(VK * phase)
-    nn = nn - np.mean(0)
+    nn = nn - np.mean(nn)
     nn *= std / np.std(nn)
     return nn
 
@@ -318,18 +340,18 @@ def Yoffe_traingleReg(timiR, to, Tr, tPic, tol=0.0):
     return kappa*yoffe
 class Rupture(object):
 
-    def __init__(self, Mo, L, W, timi):
+    def __init__(self, Mo, L, W):
         self.Mo = Mo
         self.L = L
         self.W = W
-        self.timi = timi
 
-    def computeSmallScaleVar(self):
+    def computeSmallScaleVar(self, timi):
         '''
-        Compute the small scale variation between Yoffe fucnction and a realistic STF
-        :return: SCV
+        Compute the small scale variation between Yoffe function and a realistic STF
+        :param timi: time definition, linear equal spaced
+        :return:
         '''
-        ktt = np.fft.rfftfreq(self.timi.size, self.timi[1]-self.timi[0])
+        ktt = np.fft.rfftfreq(timi.size, timi[1]-timi[0])
         kwt = np.fft.fftfreq(self.Slip.shape[1], self.dww)
 
         theta0 = np.random.rand(self.Dks.shape[0], kwt.size, ktt.size) * 2 * np.pi
@@ -338,14 +360,14 @@ class Rupture(object):
 
         fu = partial(RF_SCV_1dVK, ktt, 0.089)  # trp Noisy ---------------  input noisy ----------
         return np.reshape(list(map(fu, phaseT.reshape(phaseT.shape[0] * phaseT.shape[1], phaseT.shape[2]))),
-            (self.Slip.shape[0], self.Slip.shape[1], self.timi.size))
+            (self.Slip.shape[0], self.Slip.shape[1], timi.size))
 
     def assingLocationsOrientations(self, strike, dip, rake, dll, dww, PoiR_I, PoiL):
         '''
 
-        :param strike: -float- degrees
-        :param dip: -float- degrees
-        :param rake: -float- degrees
+        :param strike: -float- Radians
+        :param dip: -float- Radians
+        :param rake: -float- Radians
         :param dll: space between subfault in strike direction
         :param dww: space between subfault in dip direction
         :param PoiR_I: [float, float] Relative location of a fix point (reference the left down corner)
@@ -361,9 +383,9 @@ class Rupture(object):
 
         #  Orientation definition
         an = np.radians(np.array([rake, strike, dip]))
-        self.strike = strike  # Degrees
-        self.dip = dip  # Degrees
-        self.Arake=rake  # Degrees
+        self.strike = strike  # Rad(Degrees)
+        self.dip = dip  # Rad(Degrees)
+        self.Arake=rake  # Rad(Degrees)
 
         #  Vectors Source
 
@@ -394,33 +416,102 @@ class Rupture(object):
         self.Vs = Vs
         self.Rho = Rho
 
-    def generateSTF(self, SSV=None):
+    def generateSTFOpt(self, dtt, SSVadd):
         '''
-        Assing to STFs the final STF at each subfault
-        :param SSV: array([ll, dd, tt]) matrix with the small scale variations
+        Assing to STFs the final STF at each subfault, store in a optimize way (0, to,to+dt,..., to+1.2tr, tf)
+        :param dtt: step of time
+        :param SSVadd: -boolean- add SCV
         :return:
         '''
-        Mop = np.empty(list(self.Dll.shape) + [self.timi.size])
-        dtt = self.timi[1] - self.timi[0]
-        SSVadd = not (SSV is None)
+
+        tma = np.max(self.To + 2.0*self.Trise)
+        shL = int(np.min(self.To)/dtt>1)
+        timiT = np.arange(0, tma / dtt + 1) * dtt
+
+        Mop = [[None]*self.Dll.shape[1] for ii in range(self.Dll.shape[0])]
+
+        SM=np.zeros(timiT.size)
+        Vmax=np.zeros(self.Dll.shape)
         for il in range(self.Dll.shape[0]):
+            SMp = np.zeros(timiT.size)
             for iw in range(self.Dll.shape[1]):
                 if self.Slip[il, iw] != 0:
-                    stf = Yoffe_traingleReg(self.timi + dtt * 0.5, self.To[il, iw], self.Trise[il, iw],self.tac[il, iw])
+                    tii = int(self.To[il, iw]/dtt)-shL
+                    tff = tii + int((self.Trise[il, iw] + 3 * self.tac[il, iw]/1.27)/dtt)+1
+                    stf = Yoffe_traingleReg(timiT[tii:tff] + dtt * 0.5, self.To[il, iw], self.Trise[il, iw],
+                                            self.tac[il, iw])
                     vpp = np.max((self.Slip[il, iw] / (np.sum(stf) * dtt)) * stf)
                     while vpp > self.vpkMax:  # management of sub-faults with still too large vpeak
                         kk = np.random.rand() * 0.05 + 1
                         self.tac[il, iw] *= kk
                         self.Trise[il, iw] *= kk
 
-                        stf = Yoffe_traingleReg(self.timi+dtt*0.5, self.To[il,iw], self.Trise[il,iw], self.tac[il, iw])
+                        tff = tii + int((self.Trise[il, iw] + 3 * self.tac[il, iw] / 1.27) / dtt) + 1
+                        stf= Yoffe_traingleReg(timiT[tii:tff]+dtt*0.5, self.To[il,iw],self.Trise[il,iw],self.tac[il,iw])
                         vpp = np.max((self.Slip[il, iw] / (np.sum(stf) * dtt)) * stf)
 
                     while np.any(np.isnan(stf)):
                         kk = np.random.rand() * 0.05 + 1
                         self.Trise[il, iw] *= kk
 
-                        stf = Yoffe_traingleReg(self.timi+dtt *0.5, self.To[il,iw], self.Trise[il,iw], self.tac[il,iw])
+                        tff = tii + int((self.Trise[il, iw] + 3 * self.tac[il, iw] / 1.27) / dtt) + 1
+                        stf=Yoffe_traingleReg(timiT[tii:tff]+dtt*0.5, self.To[il,iw],self.Trise[il,iw], self.tac[il,iw])
+                    re = np.where(stf > 0)[0]
+                    if len(re) == 0:
+                        stf[0] = 1
+
+                    elif SSVadd:
+                        re = np.append(re, np.arange(re[-1] + 1, re[-1]+ (0.05 * self.Trise[il, iw]) // dtt, dtype=int))
+                        re = re[re < stf.size]
+                        anw = np.ones(re.size)
+                        nta = int(0.05 * self.Trise[il, iw] // dtt) + 1
+                        if nta > 1: anw[-(nta - 1):] = 1 - np.arange(1, nta) / nta
+                        SCV=computeSmallScalUni(timiT[:(re.size+1)])
+                        stf[re] += SCV[:re.size]* np.max(stf[re]) * anw
+                        stf[stf < 0] = 0.0
+                    tff = tii + re[-1] + 1
+                    moi = np.cumsum(stf[:(re[-1] + 1)]) * dtt
+                    muA = self.dll * self.dww * self.Vs[il, iw] ** 2 * self.Rho[il, iw]
+
+                    # muA = 1.0
+                    Mop[il][iw] = [[tii, tff], self.Slip[il, iw] * muA * moi / moi[-1]]
+                    SMp[tii:tff] += Mop[il][iw][1]
+                    SMp[tff:] += Mop[il][iw][1][-1]
+
+                    Vmax[il,iw]=np.max(np.gradient(Mop[il][iw][1],dtt))/muA
+            SM += SMp
+        self.SlipRateMax=Vmax
+        self.LocalMo = Mop
+        self.SeismicMoment = SM
+        self.timiT=timiT
+
+    def generateSTF(self, timi, SSV=None):
+        '''
+        Assing to STFs the final STF at each subfault
+        :param SSV: array([ll, dd, tt]) matrix with the small scale variations
+        :return:
+        '''
+        Mop = np.empty(list(self.Dll.shape) + [timi.size])
+        dtt = timi[1] - timi[0]
+        SSVadd = not (SSV is None)
+        for il in range(self.Dll.shape[0]):
+            for iw in range(self.Dll.shape[1]):
+                if self.Slip[il, iw] != 0:
+                    stf = Yoffe_traingleReg(timi + dtt * 0.5, self.To[il, iw], self.Trise[il, iw],self.tac[il, iw])
+                    vpp = np.max((self.Slip[il, iw] / (np.sum(stf) * dtt)) * stf)
+                    while vpp > self.vpkMax:  # management of sub-faults with still too large vpeak
+                        kk = np.random.rand() * 0.05 + 1
+                        self.tac[il, iw] *= kk
+                        self.Trise[il, iw] *= kk
+
+                        stf = Yoffe_traingleReg(timi+dtt*0.5, self.To[il,iw], self.Trise[il,iw], self.tac[il, iw])
+                        vpp = np.max((self.Slip[il, iw] / (np.sum(stf) * dtt)) * stf)
+
+                    while np.any(np.isnan(stf)):
+                        kk = np.random.rand() * 0.05 + 1
+                        self.Trise[il, iw] *= kk
+
+                        stf = Yoffe_traingleReg(timi+dtt *0.5, self.To[il,iw], self.Trise[il,iw], self.tac[il,iw])
                     re = np.where(stf > 0)[0]
                     if len(re) == 0:
                         stf[0] = 1
@@ -440,7 +531,7 @@ class Rupture(object):
                     Mop[il, iw, :] = self.Slip[il, iw] * muA * moi / moi[-1]
 
                 else:
-                    Mop[il, iw, :] = np.zeros(self.timi.size)
+                    Mop[il, iw, :] = np.zeros(timi.size)
 
         self.STFs = Mop * self.Mo / np.sum(Mop[:, :, -1])
 
@@ -610,7 +701,7 @@ class Rupture(object):
             Ra = VKfield2D([self.cll, self.cww, self.H], self.Dks, self.Dkd, phaseRa)
             Ra[np.unravel_index(np.argsort(Ra.flatten()), Ra.shape)] = np.sort(D_Ra.rvs(size=Ra.size))
             Ra += an
-            self.rakes = an
+            self.rakes = Ra
         else:
             self.rakes = an*np.ones(self.Dll.shape)
 
@@ -665,7 +756,7 @@ class Rupture(object):
             self.Trise = Trr
         return succ
 
-    def setRuptVeloc(self, CVrr, stdVr, limsVr, loc, rnuc, Vor, gbou, Vfr, cVpVr=None, cmax=4000):
+    def setRuptVeloc(self, CVrr, stdVr, limsVr, loc, rnuc, Vor, gbou, Vfr, maxT= 1E10, cVpVr=None, cmax=4000):
         '''
 
         :param CVrr: float average ratio Vr/Vs
@@ -676,6 +767,7 @@ class Rupture(object):
         :param Vor: Vr/Vs deduction at the hypocenter
         :param gbou:  Gap to the borders where Vr decays
         :param Vfr: Vr/Vs deduction at the borders
+        :param maxT: maximal onset time +1.2Tr
         :param cVpVr: [float, float] Vr/Vs correlation range with vpeak
         :param cmax: maximal number of tries
         :return: if the function success
@@ -729,7 +821,7 @@ class Rupture(object):
                 ccVr += 1
             self.Vr = VrrF
             self.setOnsetTimes()
-            succ = np.sum(self.To + self.Trise * 1.2 > self.timi[-1])/self.To.size<0.01
+            succ = np.sum(self.To + self.Trise * 1.2 > maxT)/self.To.size<0.01
         succ = ccVr<cmax
 
         return succ
@@ -769,6 +861,12 @@ class Rupture(object):
         if succ: self.Slip = Slip
 
         return succ
+
+    def writePickle(self, filS):
+        self.file_name=filS
+        with open(self.file_name, "wb") as file_handle:
+            pickle.dump(self, file_handle)
+            file_handle.close()
 
     def writeH5(self, filS):
         '''
