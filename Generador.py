@@ -24,9 +24,10 @@ def computeSource(sii, patt=True):
     '''
 
     np.random.seed(np.random.randint(1, 10E3) * (1 + sii))
-    RR = rg.Rupture(Mo, LI[sii], WI[sii], timi)
+    RR = rg.Rupture(Mo, LI[sii], WI[sii])
 
-    RR.assingLocationsOrientations(Lstri[sii], Ldip[sii], Lrake[sii], dll, dww, PoiR_I, PoiL)
+    RR.assingLocationsOrientations(np.radians(Lstri[sii]), np.radians(Ldip[sii]), np.radians(Lrake[sii]),
+                                   dll, dww, PoiR_I, PoiL)
     sucS, sucTr, sucV = False, False, False
 
     _, Vs, Rho = CSuelo(RR.Pos[2])
@@ -35,7 +36,7 @@ def computeSource(sii, patt=True):
     loc = [Lcll[sii], Lcww[sii], 1 + H]
     #  Slip pattern definition
     if randUmax: sucS = RR.setSlipPattern(loc, tapPL_G, None, LVumaxI[sii])
-    #else: RR.setSlipPattern(loc, tapPL_G,umax )
+    # else: RR.setSlipPattern(loc, tapPL_G,umax )
 
     if sucS:
         #  Rakes variation definition
@@ -50,17 +51,14 @@ def computeSource(sii, patt=True):
 
             #  Rupture velocity pattern and define Onset times
             locVr = [LcllVr[sii], LcllVr[sii], 1 + Hvr]
-            sucV = RR.setRuptVeloc(LCVrrI[sii], stdVr, limsVr, locVr, rnuc, Vor, gbou, Vfr, cVpVr)
-
+            sucV = RR.setRuptVeloc(LCVrrI[sii], stdVr, limsVr, locVr, rnuc, Vor, gbou, Vfr, cVpVr=cVpVr)
             if sucV:
                 #  Compute STF at each subfault
-                if addSSV:
-                    ssc = RR.computeSmallScaleVar()
-                    RR.generateSTF(ssc)
-                else:
-                    RR.generateSTF()
+                RR.generateSTFOpt(dtt, addSSV)
+
                 #  Write sources
-                RR.writeH5(foldS+'%s%d.hdf5' % (sufi, sii))
+                RR.writePickle(foldS + '%s%d.pickle' % (sufi, sii))
+
     csus=sucS and sucTr and sucV
     if not(csus) and patt:
         ii=1
@@ -94,8 +92,8 @@ def CSuelo(zz):
 if __name__ == '__main__':
     nreal = 100  # Number of realizations
     foldS = 'Sources/RS65B/'  # Output folder
-    dll, dww = 1.75 * 100.0, 1.75 * 100.0  #  Grid spacing in the fault
-    timi = np.arange(0, 25, 0.02)  #  Time definition
+    dll, dww = 2.75 * 100.0, 2.75 * 100.0  #  Grid spacing in the fault
+    dtt = 1E-3  # Step time
     Mw = 6.5  # (np.log10(Mo) - 9.05) / 1.5
     Sty = 'SD'  # 'SD'#'SS' #--> SS: Strike-Slip SD:Slip-Dip
     SuD = 'SU'  # 'SS'#'CR' # SU #--> SS:'Strike-Slip' CR: Crustal-Dip SU: Subduction-Dip-Slip
@@ -137,7 +135,6 @@ if __name__ == '__main__':
     ncore = cpu_count()
 
     Mo = 10 ** (Mw * 1.5 + 9.05)
-    dt = timi[1]- timi[0]
     LI, WI, Lstri, Ldip, Lrake = rg.computeGeometryParams(nreal, Mw,Sty, SuD, stri, randLW, randOri)
     LI = np.round(1E3 * LI / dll) * dll
     WI = np.round(1E3 * WI / dww) * dww
