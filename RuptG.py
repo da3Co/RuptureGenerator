@@ -365,9 +365,9 @@ class Rupture(object):
     def assingLocationsOrientations(self, strike, dip, rake, dll, dww, PoiR_I, PoiL):
         '''
 
-        :param strike: -float- Radians
-        :param dip: -float- Radians
-        :param rake: -float- Radians
+        :param strike: -float- Degrees
+        :param dip: -float- Degrees
+        :param rake: -float- Degrees
         :param dll: space between subfault in strike direction
         :param dww: space between subfault in dip direction
         :param PoiR_I: [float, float] Relative location of a fix point (reference the left down corner)
