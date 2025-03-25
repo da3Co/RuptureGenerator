@@ -26,8 +26,7 @@ def computeSource(sii, patt=True):
     np.random.seed(np.random.randint(1, 10E3) * (1 + sii))
     RR = rg.Rupture(Mo, LI[sii], WI[sii])
 
-    RR.assingLocationsOrientations(np.radians(Lstri[sii]), np.radians(Ldip[sii]), np.radians(Lrake[sii]),
-                                   dll, dww, PoiR_I, PoiL)
+    RR.assingLocationsOrientations(Lstri[sii], Ldip[sii], Lrake[sii], dll, dww, PoiR_I, PoiL)
     sucS, sucTr, sucV = False, False, False
 
     _, Vs, Rho = CSuelo(RR.Pos[2])
@@ -90,7 +89,7 @@ def CSuelo(zz):
         Qk[re] = dla[4]
     return Vp, Vs, Rho
 if __name__ == '__main__':
-    nreal = 100  # Number of realizations
+    nreal = 10  # Number of realizations
     foldS = 'Sources/RS65B/'  # Output folder
     dll, dww = 2.75 * 100.0, 2.75 * 100.0  #  Grid spacing in the fault
     dtt = 1E-3  # Step time
