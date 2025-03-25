@@ -10,8 +10,7 @@ from multiprocessing import Pool, cpu_count
 import shutil
 import copy
 import matplotlib.pyplot as plt
-import matplotlib as mpl
-mpl.use('TkAgg')  # interactive mode works with this, pick one
+
 #foAx='/project/k10044/David/Programs/axitra-master/MOMENT_DISP_F90_OPENMP/src'
 foAx = '/home/castda0a/Programs/axitra-master/MOMENT_DISP_F90_OPENMP/src'
 
