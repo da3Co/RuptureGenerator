@@ -192,7 +192,8 @@ def computeVKParams(LI, WI, Mw, Sty):
 def computeAveRiseTime(reg, Mw):
     '''
 
-    :param reg: Regression to compute the average rise time
+    :param reg: Regression to compute the average rise time; 'Som': Somerville et al. (1999), 'Miy': Miyake et al, 2003
+                'M&H':  # Melgar and Hayes, 2003, 'Gus': Gusev and Chebrov, 2019
     :param Mw:
     :return: expected average rise time, std of the regression
     '''
@@ -203,7 +204,7 @@ def computeAveRiseTime(reg, Mw):
     elif reg == 'Miy':  # Miyake et al, 2003
         trp = 10 ** (-3.34 + 0.5 * Mw)  # 10**(-2.66+0.439*Mw)
         strp = 0.1
-    elif reg == 'M&H':  # Miyake et al, 2003
+    elif reg == 'M&H':  # Melgar and Hayes, 2003
         trp = 10 ** (-2.66 + 0.439 * Mw)  # 10**(-2.66+0.439*Mw)
         strp = 0.15
     elif reg == 'Gus':  # Gusev and Chebrov, 2019
@@ -365,9 +366,9 @@ class Rupture(object):
     def assingLocationsOrientations(self, strike, dip, rake, dll, dww, PoiR_I, PoiL):
         '''
 
-        :param strike: -float- Degrees
-        :param dip: -float- Degrees
-        :param rake: -float- Degrees
+        :param strike: -float- Strike in degrees
+        :param dip: -float- Dip in degrees
+        :param rake: -float- Average rake in degrees
         :param dll: space between subfault in strike direction
         :param dww: space between subfault in dip direction
         :param PoiR_I: [float, float] Relative location of a fix point (reference the left down corner)
@@ -416,7 +417,7 @@ class Rupture(object):
         self.Vs = Vs
         self.Rho = Rho
 
-    def generateSTFOpt(self, dtt, SSVadd):
+    def generateSTFOpt(self, dtt, SSVadd=True):
         '''
         Assing to STFs the final STF at each subfault, store in a optimize way (0, to,to+dt,..., to+1.2tr, tf)
         :param dtt: step of time
@@ -709,8 +710,8 @@ class Rupture(object):
         '''
 
         :param loc: [float, float, float] [lengtCorrelation strike, lengtCorrelation dip, 1+Hurts exponent]
-        :param tacM: # Tpeak average
-        :param trp: average rise time
+        :param tacM: -float- Tpeak average
+        :param trp: -float- Average rise time
         :param cUTr: [float, float] correlation range between slip and rise time
         :param vpkMax: -float- maximal slip rate
         :param cmax:
@@ -756,23 +757,26 @@ class Rupture(object):
             self.Trise = Trr
         return succ
 
-    def setRuptVeloc(self, CVrr, stdVr, limsVr, loc, rnuc, Vor, gbou, Vfr, maxT= 1E10, cVpVr=None, cmax=4000):
+    def setRuptVeloc(self, CVrr, stdVr, loc, rnuc=1500, Vor=0.7, gbou=1000, Vfr=0.4,
+                     limsVr=None, maxT = 1E10, cVpVr = None, cmax=4000):
         '''
 
         :param CVrr: float average ratio Vr/Vs
         :param stdVr: std of the ratio Vr/Vs in the rupture
-        :param limsVr: [float, float] maximal and minimal Vr/Vs ratio
         :param loc: [float, float, float] [lengtCorrelation strike, lengtCorrelation dip, 1+Hurts exponent] for Vr/Vs
         :param rnuc: radious for the nucleation area
         :param Vor: Vr/Vs deduction at the hypocenter
         :param gbou:  Gap to the borders where Vr decays
         :param Vfr: Vr/Vs deduction at the borders
+        :param limsVr: [float, float] maximal and minimal Vr/Vs ratio
         :param maxT: maximal onset time +1.2Tr
         :param cVpVr: [float, float] Vr/Vs correlation range with vpeak
         :param cmax: maximal number of tries
         :return: if the function success
         '''
+
         if cVpVr is None: cVpVr = [0.2, 0.65]
+        if limsVr is None: limsVr=[0.002, 1]
         #  Rupture propagation
         self.aVrr = CVrr  # Average ratio Vr/Vs
         self.locVr = loc
@@ -826,15 +830,17 @@ class Rupture(object):
 
         return succ
 
-    def setSlipPattern(self, loc, tapPL_G, umax=None, vumax=1.0):
+    def setSlipPattern(self, loc, tapPL_G=None, umax=None, vumax=1.0):
         '''
 
         :param loc: [float, float, float] [lengtCorrelation strike, lengtCorrelation dip, 1+Hurts exponent]
-        :param tapPL_G:
+        :param tapPL_G:  Tapper definition at each edge [-x,+x,-y,+y] default (None): [0.15, 0.15, 0.15, 0.15]
         :param umax: float, maximal slip, None it computes from a regresion on average slip
         :param vumax: float, variation of the regresion for umax
         :return: if a Slip patter was solved
         '''
+        if tapPL_G is None: tapPL_G = np.asarray([0.15, 0.15, 0.15, 0.15])
+
         self.cll = loc[0]
         self.cww = loc[1]
         self.H = loc[2]-1

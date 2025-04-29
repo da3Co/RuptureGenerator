@@ -23,8 +23,8 @@ def fourSpec(data, frem, tnd=-1):
     return [np.arange(FT.size-1)*df, FT/frem]
 from scipy.io import savemat
 mpl.use('TkAgg')  # interactive mode works with this, pick one
-suf='RS65B'
-fold = 'Sources/%s/'%suf  # RaSN AIS1
+suf='Example2'
+fold = 'Results/%s/'%suf  # RaSN AIS1
 folp = 'plots/%s/SourcesAll/'%suf  # RaSN # Folder to save the plots
 
 envio=None#'envio/'

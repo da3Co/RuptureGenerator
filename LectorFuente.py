@@ -23,15 +23,15 @@ def fourSpec(data, frem, tnd=-1):
     return [np.arange(FT.size-1)*df, FT/frem]
 from scipy.io import savemat
 mpl.use('TkAgg')  # interactive mode works with this, pick one
-suf='RS65B'
+suf='Example1'
 fold = 'Sources/%s/'%suf#'Sources/CulS2NN/'#
-folp = 'plots/%s/SourcesP/'%suf# # Folder to save the plots   1_12
+folp = 'plots/%s/Sources/'%suf# # Folder to save the plots   1_12
 envio=None#'envio/'
 fss = [6.4, 4.8]  # [4.8, 6.4]
 time = np.arange(0, 20, 1)  # dynamic plots times 30
 ffb = (0.01, 2.5)  # opt range black dash line
-levTo = np.linspace(0, 10, 11)
-levS = np.linspace(0, 1.8, 13)
+levTo = np.linspace(0, 20, 11)
+levS = np.linspace(0, 6.0, 31)
 levVpk = np.arange(0, 6.5, 0.1)
 levRVr = np.arange(0.6, 1.01, 0.025)
 levTr = np.arange(0, 4.5, 0.25)
@@ -103,7 +103,7 @@ for file in tqdm(lfil):
     ax1.clabel(C, inline=1, fontsize=12, fmt='%.1f')
     plt.xlim(0, lvec[-1])
 
-    U, V = np.cos(So.rakes[0]), np.sin(So.rakes[0])
+    U, V = np.cos(So.rakes), np.sin(So.rakes)
     sel = np.zeros(Dll.shape, dtype=bool)
     sel1 = sel.copy()
 
@@ -120,15 +120,16 @@ for file in tqdm(lfil):
                 edgecolors=(0.0, 0.0, 0.0), marker='*')  # (0.940015, 0.975158, 0.131326)
     plt.scatter(lvec[phy[0]], wvec[phy[1]], s=20, color=(0.0, 0.0, 0.0), marker='.')
 
-    ax2 = ax1.twinx()
-    ax1.set_ylim(0, wvec[-1])  # So.attrs['LW'] / 1E3
-    ax2.set_ylabel('Depth [Km]', fontsize=16)
-
     ax1.set_aspect('equal', 'datalim')
+
+
+    ax1.set_ylim(0, wvec[-1])  # So.attrs['LW'] / 1E3
+    '''ax2 = ax1.twinx()
+    ax2.set_ylabel('Depth [Km]', fontsize=16)
 
     dmi = 1E-3 * np.min(So.Pos[2])
     m = (1E-3 * np.max(So.Pos[2]) - dmi) / wvec[-1]
-    ax2.set_ylim(ax1.viewLim.bounds[1] * m + dmi, ax1.viewLim.bounds[3] * m + dmi)
+    ax2.set_ylim(ax1.viewLim.bounds[1] * m + dmi, ax1.viewLim.bounds[3] * m + dmi)'''
     # plt.tight_layout()
     plt.savefig('%sSlip%s.png' % (folp, file), dpi=300)  # _Slip
     plt.close()
@@ -136,7 +137,7 @@ for file in tqdm(lfil):
 plt.figure(num=figMo.number)
 plt.ylabel('$\\dot{Mo}$ [$Nm/s$]', fontsize=16)
 plt.xlabel('Time [$s$]', fontsize=16)
-plt.xlim(0, 10)#time[-1])  # dt*nt)#25)#
+plt.xlim(0, 20)#time[-1])  # dt*nt)#25)#
 plt.ylim(ymin=0)
 plt.legend(loc=1, fontsize=14)
 plt.tight_layout()
@@ -160,7 +161,7 @@ plt.ylabel('|$FFT(\\dot{Mo})$| [$Nm$]', fontsize=16)
 plt.xlabel('Frequency [$Hz$]', fontsize=16)
 # plt.xlim(freq[1], 30)
 plt.xlim(1E-2, 20)
-plt.ylim(1E13, 8E18)
+plt.ylim(1E13, 1.2*C)
 plt.xscale('log')
 plt.yscale('log')
 # plt.ylim(1E14, 1E20)
