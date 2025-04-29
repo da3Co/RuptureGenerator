@@ -345,6 +345,7 @@ class Rupture(object):
         self.Mo = Mo
         self.L = L
         self.W = W
+        self.Mw = (np.log10(Mo)-9.05)/1.5
 
     def computeSmallScaleVar(self, timi):
         '''
