@@ -1,8 +1,10 @@
 # RuptureGenerator
-Library to create realistic seismic rupture
+A library to create realistic seismic ruptures
 
 
-RuptG.py file contains the functions and codes to perform the code.
+RuptG.py file contains the functions and code to perform the rupture generations.
 
-As example, Generador.py shows how to create different realizations for a particualar earthquake using RuptG.py functions. 
-LectorFuente.py and LectorFuenteTot.py plots the main features of each generated rupture.
+File Example1.py shows, as an example, how to create a single realization in a sequence process. 
+File Example2.py shows the generation in parallel of several realizations for an earthquake using RuptG.py functions.
+
+LectorFuente.py and LectorFuenteTot.py plot the main features of each generated rupture.
