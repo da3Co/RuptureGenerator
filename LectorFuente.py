@@ -24,7 +24,7 @@ def fourSpec(data, frem, tnd=-1):
 from scipy.io import savemat
 mpl.use('TkAgg')  # interactive mode works with this, pick one
 suf='Example1'
-fold = 'Sources/%s/'%suf#'Sources/CulS2NN/'#
+fold = 'Results/%s/'%suf#'Sources/CulS2NN/'#
 folp = 'plots/%s/Sources/'%suf# # Folder to save the plots   1_12
 envio=None#'envio/'
 fss = [6.4, 4.8]  # [4.8, 6.4]

@@ -14,8 +14,8 @@ from functools import partial
 import h5py
 import pickle
 import matplotlib.pyplot as plt
-import matplotlib as mpl
-mpl.use('TkAgg')  # interactive mode works with this, pick one
+#import matplotlib as mpl
+#mpl.use('TkAgg')  # interactive mode works with this, pick one
 def computeGeometryParams(niter, Mw, Sty, SuD, aveStri, randLW, randOri, fa=1.15):
     '''
 
@@ -586,8 +586,8 @@ class Rupture(object):
 
             uva = self.Slip / np.mean(self.Slip)
             uma = self.Slip / np.max(self.Slip)
-
-            hxx = (self.Dll - 0.5 * self.tapPL[0]) / (self.L - 0.5 * self.tapPL[0] - 0.5 * self.tapPL[1])  # Dll/L
+            #hxx = self.Dll/self.L - 0.5
+            hxx = (self.Dll - 0.5 * self.tapPL[0]) / (self.L - 0.5 * self.tapPL[0] - 0.5 * self.tapPL[1])
             hzz = 1 - (self.Dww - 0.5 * self.tapPL[2]) / (self.W - 0.5 * self.tapPL[2] - 0.5 * self.tapPL[3])  #1-Dww/W
 
             dpp = np.ones(self.Slip.shape)
@@ -657,7 +657,8 @@ class Rupture(object):
                 dpp *= Tpdf / Rpdf
                 # dpp[np.any([hxx<0, hxx>1], axis=0)]=0.0
 
-                dpp = Tapper(Tapper(dpp, self.cdd, self.ws, self.ade), self.cdd, self.ws, self.ade)
+                dpp = Tapper(Tapper(Tapper(Tapper(dpp, self.cdd, self.ws, self.ade), self.cdd, self.ws, self.ade),
+                             self.cdd, self.ws, self.ade), self.cdd, self.ws, self.ade)
                 dpp = dpp / np.sum(dpp)
                 if err < erF:
                     dpF = dpp

@@ -69,7 +69,7 @@ def computeSource(sii, Inp, patt=True):
         succ=False
         while ii<nmit or not(succ):
             ii+=1
-            succ=computeSource(sii, False)
+            succ=computeSource(sii, Inp, False)
         if not(succ):
             print('Rupture no generated: [%r, %r, %r, %r]' %(sucS, sucTr, sucV, hasattr(RR, 'To')))
 
@@ -94,7 +94,7 @@ def CSuelo(zz):
         Qk[re] = dla[4]
     return Vp, Vs, Rho
 if __name__ == '__main__':
-    nreal = 10  # Number of realizations
+    nreal = 22  # Number of realizations
     foldS = 'Results/Example2/'  # Output folder
     dll, dww = 2.75 * 100.0, 2.75 * 100.0  #  Grid spacing in the fault
     dtt = 1E-3  # Step time
