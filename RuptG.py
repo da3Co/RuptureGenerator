@@ -16,6 +16,31 @@ import pickle
 import matplotlib.pyplot as plt
 #import matplotlib as mpl
 #mpl.use('TkAgg')  # interactive mode works with this, pick one
+
+def addHFSlip(Mo, Dks, Dkd, Vs, Rho, dll, dww, loc, ade, D_u, cdd, ws, phaseI, F, lTapSlp=0.8, cmax=4000):
+    val = True
+    ccS = -1
+
+    # slip computation
+    while val:
+        theta0 = np.random.rand(Dks.shape[0], Dkd.shape[1]) * 2 * np.pi
+        theta0[0, 0] = 0.0
+        phaseS = np.exp(theta0 * 1j) * (1 - F) + phaseI * F
+
+        Slp = VKfield2D([loc[0], loc[1], loc[2]], Dks, Dkd, phaseS)
+
+        #  Transformation
+        Slp[np.unravel_index(np.argsort(Slp.flatten()), Slp.shape)] = np.sort(D_u.rvs(size=Slp.size))
+
+        #  Tapper check
+        Swt = Slp.copy()
+        Slp = Tapper(Swt, cdd, ws, ade)
+
+        ccS += 1
+        val = not np.sum(Slp) / np.sum(Swt) > lTapSlp and ccS < cmax
+
+    return Slp * Mo / np.sum(dll * dww * Slp * Rho * Vs ** 2), np.logical_not(val)
+
 def computeGeometryParams(niter, Mw, Sty, SuD, aveStri, randLW, randOri, fa=1.15):
     '''
 
@@ -385,9 +410,9 @@ class Rupture(object):
 
         #  Orientation definition
         an = np.radians(np.array([rake, strike, dip]))
-        self.strike = strike  # Rad(Degrees)
-        self.dip = dip  # Rad(Degrees)
-        self.Arake=rake  # Rad(Degrees)
+        self.strike = strike  # Strike (Degrees)
+        self.dip = dip  # Dip (Degrees)
+        self.Arake = rake  # Rake (Degrees)
 
         #  Vectors Source
 
@@ -397,7 +422,7 @@ class Rupture(object):
         self.vnor = np.cross(self.vlon, self.vwid)
 
         #  Define relative location
-        self.nll, self.nww = np.arange(0, self.L, self.dll), np.arange(0, self.W, self.dww)
+        self.nll, self.nww = np.arange(0, self.L, self.dll)+0.5*dll, np.arange(0, self.W, self.dww)+0.5*dww
         self.ade = [0, 0]
         if self.nww.size % 2 != 0:
             self.nww = np.append(self.nww[0] - self.dww, self.nww)
@@ -417,6 +442,19 @@ class Rupture(object):
     def assingMaterialProp(self, Vs, Rho):
         self.Vs = Vs
         self.Rho = Rho
+
+    def defineWeigthFunction(self, fLim, N=4):
+        '''
+        Defines the weight function between a predefined source and the new stochatic High frequency part
+        :param fLim: maximal frequency definition of the initial source
+        :param N: Sharpness transition parameter
+        :return:
+        '''
+
+        VssP = np.mean(self.Vs)
+        cl = VssP / fLim  # min([Vs / fmaxS, fe.attrs['LL'] / 2])
+        cw = VssP / fLim  # min([Vs / fmaxS, fe.attrs['LW'] / 2])
+        self.F = 1 / (1 + ((cl * self.Dks) ** 2 + (cw * self.Dkd) ** 2) ** N)
 
     def generateSTFOpt(self, dtt, SSVadd=True):
         '''
@@ -759,6 +797,55 @@ class Rupture(object):
             self.Trise = Trr
         return succ
 
+    def setRiseTimePatternHF(self, loc, tacM, trp, phaseI, cUTr=None, vpkMax=6.5, cmax=4000):
+        '''
+
+        :param loc: [float, float, float] [lengtCorrelation strike, lengtCorrelation dip, 1+Hurts exponent]
+        :param tacM: -float- Tpeak average
+        :param trp: -float- Average rise time
+        :param cUTr: [float, float] correlation range between slip and rise time
+        :param vpkMax: -float- maximal slip rate
+        :param cmax:
+        :return:
+        '''
+
+        self.trp = trp  # average rise time
+        self.vpkMax = vpkMax  # Maximal slip rate
+        if cUTr is None: cUTr = [0.50, 0.90]
+        ccTr = -1
+        val=True
+        while val:
+            Trr, succ = addHFSlip(self.Mo, self.Dks, self.Dkd, self.Vs, self.Rho, self.dll, self.dww,
+                                    loc, self.ade, self.D_u, self.cdd, self.ws, phaseI, self.F, 0.6)
+            Trr = np.sqrt(Trr)
+
+            #  correcting rise time distribution
+            Trr *= trp / np.mean(Trr[self.Slip > 0])
+            mcc = 0.02 * trp
+            Trr[Trr < mcc] = mcc
+
+            crt = np.corrcoef(self.Slip.flatten(), Trr.flatten())[0, 1]
+            eva0 = crt > cUTr[0] and crt < cUTr[1]
+
+            # coTr=True
+            # Vpeak
+            tac = Trr * (tacM / np.mean(Trr))  # Tpeak computation!!!
+            tac[tac < 0.01] = 0.01
+            maTr = Trr < 1.2 * tac
+            Trr[maTr] = 1.2 * tac[maTr]
+
+            self.tac = tac
+            self.vpk = estimateVpeak(self.Slip, Trr, tac)
+            eva1 = np.sum(self.vpk > vpkMax) / self.vpk.size < 0.02
+
+            val = ccTr < cmax and (not (eva1) or not (eva0))  # if the errors afer few and loca, we manage
+            # Those exceptions individualy
+            ccTr += 1
+        succ = np.logical_not(val)
+        if succ:
+            self.Trise = Trr
+        return succ
+
     def setRuptVeloc(self, CVrr, stdVr, loc, rnuc=1500, Vor=0.7, gbou=1000, Vfr=0.4,
                      limsVr=None, maxT = 1E10, cVpVr = None, cmax=4000):
         '''
@@ -832,6 +919,75 @@ class Rupture(object):
 
         return succ
 
+    def setRuptVelocHF(self, CVrr, stdVr, loc, phaseI, gbou=1000, Vfr=0.4, limsVr=None, maxT = 1E10,
+                       cVpVr = None, cmax=4000):
+        '''
+
+        :param CVrr: float average ratio Vr/Vs
+        :param stdVr: std of the ratio Vr/Vs in the rupture
+        :param loc: [float, float, float] [lengtCorrelation strike, lengtCorrelation dip, 1+Hurts exponent] for Vr/Vs
+        :param rnuc: radious for the nucleation area
+        :param Vor: Vr/Vs deduction at the hypocenter
+        :param gbou:  Gap to the borders where Vr decays
+        :param Vfr: Vr/Vs deduction at the borders
+        :param limsVr: [float, float] maximal and minimal Vr/Vs ratio
+        :param maxT: maximal onset time +1.2Tr
+        :param cVpVr: [float, float] Vr/Vs correlation range with vpeak
+        :param cmax: maximal number of tries
+        :return: if the function success
+        '''
+
+        if cVpVr is None: cVpVr = [0.2, 0.65]
+        if limsVr is None: limsVr=[0.002, 1]
+        #  Rupture propagation
+        self.aVrr = CVrr  # Average ratio Vr/Vs
+        self.locVr = loc
+
+        ZoDv = np.ones(self.Vs.shape)
+        res = self.Dll < gbou
+        ZoDv[res] *= (1.0 - Vfr) * self.Dll[res] / gbou + Vfr
+        res = self.Dww < gbou
+        ZoDv[res] *= (1.0 - Vfr) * self.Dww[res] / gbou + Vfr
+        res = self.nll[-1] - self.Dll < gbou
+        ZoDv[res] *= (1.0 - Vfr) * (self.nll[-1] - self.Dll[res]) / gbou + Vfr
+        res = self.nww[-1] - self.Dww < gbou
+        ZoDv[res] *= (1.0 - Vfr) * (self.nww[-1] - self.Dww[res]) / gbou + Vfr
+
+        #  Distribution 1-Vr/Vs
+        coo = True
+        ccVr = -2
+        while coo and ccVr < cmax:
+            resW = minimize(costWVr, np.asarray([1, 1]), args=(1-limsVr[1], CVrr, stdVr + 0.01 * (ccVr + 2)))
+            coo = not (resW.success)
+            ccVr += 1
+        self.D_Vr = weibull_min(resW.x[0], loc=1-limsVr[1], scale=resW.x[1])
+
+        succ = False
+        ccVr = -1
+        while not succ and ccVr < cmax:
+            while not(succ) and ccVr < cmax:
+                theta0 = np.random.rand(self.Dks.shape[0], self.Dkd.shape[1]) * 2 * np.pi
+                theta0[0, 0] = 0.0
+                phase = np.exp(theta0 * 1j)*(1 - self.F) + phaseI * self.F
+
+                Dvv = VKfield2D(loc, self.Dks, self.Dkd, phase)
+                Dvv *= -np.sign(np.corrcoef(self.vpk.flatten(), Dvv.flatten())[0, 1])
+                Dvv[np.unravel_index(np.argsort(Dvv.flatten()), Dvv.shape)] = np.sort(self.D_Vr.rvs(size=Dvv.size))
+
+                Dvv = ZoDv * (1 - Dvv)
+                Dvv[Dvv < limsVr[0]] = limsVr[0]
+                VrrF = Dvv * self.Vs
+
+                cmt = np.corrcoef(self.vpk.flatten(), VrrF.flatten())[0, 1]
+                succ = cmt > cVpVr[0] and cmt < cVpVr[1]
+                ccVr += 1
+            self.Vr = VrrF
+            self.setOnsetTimes()
+            succ = np.sum(self.To + self.Trise * 1.2 > maxT)/self.To.size<0.01
+        succ = ccVr<cmax
+
+        return succ
+
     def setSlipPattern(self, loc, tapPL_G=None, umax=None, vumax=1.0):
         '''
 
@@ -866,6 +1022,44 @@ class Rupture(object):
 
         Slip, succ = computeSlip(self.Mo, self.Dks, self.Dkd, self.Vs, self.Rho, self.dll, self.dww,
                               loc, self.ade, self.D_u, self.cdd, self.ws)
+        if succ: self.Slip = Slip
+
+        return succ
+
+    def setSlipPatternHF(self, loc, phaseI, tapPL_G=None, umax=None, vumax=1.0):
+        '''
+
+        :param loc: [float, float, float] [lengtCorrelation strike, lengtCorrelation dip, 1+Hurts exponent]
+        :param tapPL_G:  Tapper definition at each edge [-x,+x,-y,+y] default (None): [0.15, 0.15, 0.15, 0.15]
+        :param umax: float, maximal slip, None it computes from a regresion on average slip
+        :param vumax: float, variation of the regresion for umax
+        :return: if a Slip patter was solved
+        '''
+        if tapPL_G is None: tapPL_G = np.asarray([0.15, 0.15, 0.15, 0.15])
+
+        self.cll = loc[0]
+        self.cww = loc[1]
+        self.H = loc[2]-1
+        uni = self.Mo / np.sum(self.dll * self.dww * self.Rho * self.Vs ** 2)
+
+        if umax is None: umax = vumax*10 ** (0.95 * np.log10(uni) + 0.62)  # maximal slip
+
+        if uni / umax > 0.4:
+            umax = uni / 0.4
+        self.umax = umax
+
+        ep = lambda uc: uni - truncexpon.mean(b=umax / uc, scale=uc)
+        uc = fsolve(ep, 0.1 * uni)[0]
+        self.D_u = truncexpon(b=umax / uc, scale=uc)
+
+        self.tapPL = np.asarray([self.L * tapPL_G[0], self.L * tapPL_G[1], self.W * tapPL_G[2], self.W * tapPL_G[3]])
+        # Tapper definition
+        self.cdd = np.append(np.asarray(np.ceil(self.tapPL[:2] / self.dll).astype(int)),
+                        np.asarray(np.ceil(self.tapPL[2:] / self.dll).astype(int)))
+        self.ws = [np.hanning(2 * self.cdd[nd]) for nd in range(self.cdd.size)]
+
+        Slip, succ = addHFSlip(self.Mo, self.Dks, self.Dkd, self.Vs, self.Rho, self.dll, self.dww,
+                              loc, self.ade, self.D_u, self.cdd, self.ws, phaseI, self.F, 0.6)
         if succ: self.Slip = Slip
 
         return succ
