@@ -238,6 +238,28 @@ for file in tqdm(lfil):
         plt.xlim(0, lvec[-1])
         plt.ylim(0, wvec[-1])
         ax1.set_aspect('equal', 'box')
+
+        #  prob Hypocenter x,y
+        if hasattr(So, 'pHyp'):
+            plt.subplot(3, 2, 5)
+            Phyp = np.log10(So.pHyp[:])
+            val = np.isfinite(Phyp)
+            levPhyp = np.linspace(np.max(Phyp[val])-4, np.max(Phyp[val]), 25)
+            Phyp[np.logical_not(val)] = levPhyp[0]
+            Phyp[Phyp<levPhyp[0]] = levPhyp[0]
+
+            ax1 = plt.gca()
+            plt.contourf(lvec, wvec, np.transpose(Phyp), cmap='jet', levels=levPhyp, extend='max')  # bonecmap
+            cbar = plt.colorbar(orientation='vertical')
+            C = plt.contour(lvec, wvec, np.transpose(So.To), levels=levTo, cmap='gist_gray_r', linewidths=2.0)
+            # ax1.clabel(C, inline=1, fontsize=8, fmt='%.1f')
+            plt.scatter(phyC[0], phyC[1], s=40, facecolors='none', edgecolors=(0.940015, 0.975158, 0.131326), marker='*')
+            plt.title('$P_{hyppcenter}$ [$1$]', fontsize=14)
+            plt.ylabel('Width direction [$km$]', fontsize=16)
+            plt.xlabel('Length direction [$km$]', fontsize=16)
+            plt.xlim(0, lvec[-1])
+            plt.ylim(0, wvec[-1])
+            ax1.set_aspect('equal', 'box')
         # Vr/Vs plot
         plt.subplot(3, 2, 6)
         ax1 = plt.gca()
