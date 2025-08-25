@@ -24,7 +24,7 @@ def fourSpec(data, frem, tnd=-1):
 from scipy.io import savemat
 mpl.use('TkAgg')  # interactive mode works with this, pick one
 suf='Example2'
-fold = 'Results/%s/'%suf  # RaSN AIS1
+fold = 'Results/%s/Sources/'%suf  # RaSN AIS1
 folp = 'plots/%s/SourcesAll/'%suf  # RaSN # Folder to save the plots
 
 envio=None#'envio/'
@@ -37,10 +37,10 @@ time = np.arange(0, 20, 1)  # dynamic plots times 30
 ffb = (0.01, 2.5)  # opt range black dash line
 
 levTo = np.linspace(0, 14, 15)
-levS = np.linspace(0, 1.0, 21)
+levS = np.linspace(0, 4.0, 41)
 levVpk = np.arange(0, 6.5, 0.1)
 levRVr = np.arange(0.1, 1.1, 0.01)
-levTr = np.arange(0, 2.1, 0.2)
+levTr = np.arange(0, 8.1, 0.2)
 levTpk = np.linspace(0, 0.3, 31)
 levSt = np.linspace(-0.2, 0.2, 21)
 #  -------------------------------------------------------------------------------------------------------------
@@ -48,7 +48,7 @@ lfil =[file[:-7] for file in listdir(fold) if file.endswith('.pickle')]
 
 p=0.2
 colormap = plt.cm.get_cmap('turbo')
-colA = np.asarray([colormap(pp) for pp in np.linspace(0, 1, 9)])
+colA = np.asarray([colormap(pp) for pp in np.linspace(0, 1, levS.size)])
 nnb=int(np.round(colA.shape[0]*p))
 colN=1-np.transpose(np.tile(np.arange(nnb)/nnb, (4,1)))*np.tile((1-colA[nnb]), (nnb,1))
 cma = np.append(colN, colA[nnb:], axis=0)
@@ -215,28 +215,6 @@ for file in tqdm(lfil):
         plt.xlim(0, lvec[-1])
         plt.ylim(0, wvec[-1])
         # plt.tight_layout()
-        ax1.set_aspect('equal', 'box')
-
-        #  prob Hypocenter x,y
-        plt.subplot(3, 2, 5)
-
-        Phyp = np.log10(So.pHyp[:])
-        val = np.isfinite(Phyp)
-        levPhyp = np.linspace(np.max(Phyp[val])-4, np.max(Phyp[val]), 25)
-        Phyp[np.logical_not(val)] = levPhyp[0]
-        Phyp[Phyp<levPhyp[0]] = levPhyp[0]
-
-        ax1 = plt.gca()
-        plt.contourf(lvec, wvec, np.transpose(Phyp), cmap='jet', levels=levPhyp, extend='max')  # bonecmap
-        cbar = plt.colorbar(orientation='vertical')
-        C = plt.contour(lvec, wvec, np.transpose(So.To), levels=levTo, cmap='gist_gray_r', linewidths=2.0)
-        # ax1.clabel(C, inline=1, fontsize=8, fmt='%.1f')
-        plt.scatter(phyC[0], phyC[1], s=40, facecolors='none', edgecolors=(0.940015, 0.975158, 0.131326), marker='*')
-        plt.title('$P_{hyppcenter}$ [$1$]', fontsize=14)
-        plt.ylabel('Width direction [$km$]', fontsize=16)
-        plt.xlabel('Length direction [$km$]', fontsize=16)
-        plt.xlim(0, lvec[-1])
-        plt.ylim(0, wvec[-1])
         ax1.set_aspect('equal', 'box')
 
         #  prob Hypocenter x,y

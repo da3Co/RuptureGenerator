@@ -11,7 +11,6 @@ from scipy.stats import gamma, weibull_min, norm, truncexpon
 from scipy.optimize import fsolve, minimize
 from fteikpy import Eikonal2D
 from functools import partial
-import h5py
 import pickle
 import matplotlib.pyplot as plt
 #import matplotlib as mpl
@@ -39,116 +38,136 @@ def addHFSlip(Mo, Dks, Dkd, Vs, Rho, dll, dww, loc, ade, D_u, cdd, ws, phaseI, F
         ccS += 1
         val = not np.sum(Slp) / np.sum(Swt) > lTapSlp and ccS < cmax
 
-    return Slp * Mo / np.sum(dll * dww * Slp * Rho * Vs ** 2), np.logical_not(val)
+    return Slp * Mo / np.sum(dll * dww * Slp * Rho * Vs ** 2), np.logical_not(val), theta0
 
-def computeGeometryParams(niter, Mw, Sty, SuD, aveStri, randLW, randOri, fa=1.15):
+def computeGeometryParams(Mw, Sty, SuD, randLW, fa=1.15, th=2.5, mar=1.1):
     '''
-
-    :param niter: -int- Number of realizations
+    Thingbaijam et al., 2017
     :param Mw: -float-
     :param Sty: -string- Style of the source SS: Strike-Slip SD:Slip-Dip
     :param SuD: -string- Type of slip-dip fault SS:'Strike-Slip' CR: Crustal-Dip SU: Subduction-Dip-Slip
-    :param aveStri: -float- Avergage Strike
     :param randLW: -boolean- Allow L and W randomness
-    :param randOri: -boolean- Allow strike, dip and rake randomness
-    :param randOri: -float- Amplification of the lengths
-    :return:
+    :param fa: complete length per effective length ratio
+    :param th: threshold in std units to no consider the realization and generating a new
+    :param mar: Maximal aspect ratio W/L
+    :return: length and with in meters
     '''
     #  Dimension Randomness
     if Sty == 'SS':
         L_I = fa * 10 ** (-2.943 + 0.681 * Mw)
         W_I = fa * 10 ** (-0.543 + 0.261 * Mw)
         if randLW[0]:
-            LI = L_I * 10 ** (np.random.randn(niter) * 0.151)
-        else:
-            LI = L_I * np.ones(niter)
-        if randLW[1]:
-            WI = W_I * 10 ** (np.random.randn(niter) * 0.105)
-        else:
-            WI = W_I * np.ones(niter)
+            LI = L_I * 10 ** (np.random.randn() * 0.151)
+            if LI < L_I * 10 ** (- th * 0.151) or LI > L_I * 10 ** (th * 0.151): LI = L_I
 
-        #  orientation
-        if randOri:
-            Ldip = 50 * np.sqrt(np.random.rand(niter)) + 40
-            Lstri = np.ones(niter) * aveStri
-            Lrake = 100 * np.random.rand(niter) + -140
+        else:
+            LI = L_I
+        if randLW[1]:
+            WI = W_I * 10 ** (np.random.randn() * 0.105)
+            if WI < W_I * 10 ** (- th * 0.105) or WI > W_I * 10 ** (th * 0.105): WI = W_I
+
+        else:
+            WI = W_I
+
     elif Sty == 'SD':
         if SuD == 'CR':
             L_I = fa * 10 ** (-2.693 + 0.614 * Mw)
             W_I = fa * 10 ** (-1.669 + 0.435 * Mw)
             if randLW[0]:
-                LI = L_I * 10 ** (np.random.randn(niter) * 0.083)
-            else:
-                LI = L_I * np.ones(niter)
-            if randLW[1]:
-                WI = W_I * 10 ** (np.random.randn(niter) * 0.087)
-            else:
-                WI = W_I * np.ones(niter)
+                LI = L_I * 10 ** (np.random.randn() * 0.083)
+                if LI < L_I * 10 ** (- th * 0.083) or LI > L_I * 10 ** (th * 0.083): LI = L_I
 
-            if randOri:
-                Ldip = 35 * np.random.rand(niter) + 25
-                Lstri = np.ones(niter) * aveStri
-                Lrake = 110 * np.random.rand(niter) + 70
+            else:
+                LI = L_I
+            if randLW[1]:
+                WI = W_I * 10 ** (np.random.randn() * 0.087)
+                if WI < W_I * 10 ** (- th * 0.087) or WI > W_I * 10 ** (th * 0.087): WI = W_I
+            else:
+                WI = W_I
+
         elif SuD == 'SU':
 
             L_I = fa * 10 ** (-0.880 + 0.366 * Mw)  # 10 ** (-2.412 + 0.583 * Mw)
             W_I = fa * 10 ** (-2.412 + 0.583 * Mw)  # 10 ** (-0.880 + 0.366 * Mw)
             if randLW[0]:
-                LI = L_I * 10 ** (np.random.randn(niter) * 0.107)
-                LI[LI < L_I * 10 ** (- 2.5 * 0.107)] = L_I
-                LI[LI > L_I * 10 ** (2.5 * 0.107)] = L_I
+                LI = L_I * 10 ** (np.random.randn() * 0.107)
+                if LI < L_I * 10 ** (- th * 0.107) or LI > L_I * 10 ** (th * 0.107): LI = L_I
+
             else:
-                LI = L_I * np.ones(niter)
+                LI = L_I
+
             if randLW[1]:
-                WI = W_I * 10 ** (np.random.randn(niter) * 0.099)
-                WI[WI < WI * 10 ** (- 2.5 * 0.099)] = W_I
-                WI[WI > WI * 10 ** (2.5 * 0.099)] = W_I
+                WI = W_I * 10 ** (np.random.randn() * 0.099)
+                if WI < W_I * 10 ** (- th * 0.099) or WI > W_I * 10 ** (th * 0.099): WI = W_I
+
             else:
-                WI = W_I * np.ones(niter)
-            if randOri:
-                Ldip = 35 * np.random.rand(niter) + 25
-                Lstri = np.ones(niter) * aveStri
-                Lrake = 110 * np.random.rand(niter) + 70
+                WI = W_I
+
         else:  # Normal events
             L_I = fa * 10 ** (-1.722 + 0.485 * Mw)
             W_I = fa * 10 ** (-0.829 + 0.323 * Mw)
             if randLW[0]:
-                LI = L_I * 10 ** (np.random.randn(niter) * 0.128)
+                LI = L_I * 10 ** (np.random.randn() * 0.128)
+                if LI < L_I * 10 ** (- th * 0.128) or LI > L_I * 10 ** (th * 0.128): LI = L_I
+
             else:
-                LI = L_I * np.ones(niter)
+                LI = L_I
             if randLW[1]:
-                WI = W_I * 10 ** (np.random.randn(niter) * 0.128)
+                WI = W_I * 10 ** (np.random.randn() * 0.128)
+                if WI < W_I * 10 ** (- th * 0.128) or WI > W_I * 10 ** (th * 0.128): WI = W_I
             else:
-                WI = W_I * np.ones(niter)
+                WI = W_I
 
-            if randOri:
-                Ldip = 55 * np.random.rand(niter) + 30
-                Lstri = np.ones(niter) * aveStri
-
-                rr = np.random.rand(niter)
-                Lrake = np.empty(niter)
-                rgr = rr < 0.25
-                Lrake[rgr] = 20 * np.random.rand(np.sum(rgr)) - 180
-                rgr = np.all([np.logical_not(rgr), rr < 0.75], axis=0)
-                Lrake[rgr] = 40 * np.random.rand(np.sum(rgr)) - 20
-                Lrake[rr > 0.75] = 20 * np.random.rand(np.sum(rgr)) + 160
     else:
         print('Error no defined scale relation')
 
-    err = WI > 1.1 * LI
-    WI[err] = 1.1 * LI[err]
+    if WI > mar * LI: WI = mar * LI
 
-    if not(randOri):
-        Lstri, Ldip, Lrake = None, None, None
-    return LI, WI, Lstri, Ldip, Lrake
+    return 1E3*LI, 1E3*WI
 
+def computeUmax(uni, randUmax=True):
+    '''
 
-def computeRiseTime(Mo, L, W, Dks, Dkd, Vs, Rho, dll, dww, loc, ade, D_u, lTapSlp=0.8,
-                tapPL_G=np.asarray([0.15, 0.15, 0.15, 0.15]), cmax=4000):
+    :param uni: -array- average slip
+    :param randUmax: -boolean- add randomness to umax
+    :return:
+    '''
 
-    ss = computeSlip(Mo, L, W, Dks, Dkd, Vs, Rho, dll, dww, loc, ade, D_u, lTapSlp, tapPL_G, cmax)
+    if randUmax:
+        ra=1
+        while ra>0.4:
+            umax = 10 ** (0.95 * np.log10(uni) + 0.62 + np.random.randn(uni.size))  # maximal slip
+            ra=uni/umax
+    else:
+        umax = 10 ** (0.95 * np.log10(uni) + 0.62)
+    return umax
+def computeOrientationParams(Mec):
+    '''
 
-    return ss
+    :param Mec: Mechanism SS: Strike-Slip NS: Normal fault RS: Reverse fault
+    :return: dip, rake (degrees)
+    '''
+    if Mec == 'SS':
+        dip = 90 - 15 * np.fabs(np.random.randn())
+        while dip<40:
+            dip = 90 - 15 * np.fabs(np.random.randn())
+        rake = 60 * np.random.rand() - 30 - 180*np.random.binomial(1, 0.5)
+    elif Mec == 'NS':
+        dip = 55 * np.random.rand() + 30
+        rake = 15 * np.random.randn()-90
+        while rake < -150 or rake > -30:
+            rake = 15 * np.random.randn()-90
+
+    elif Mec == 'RS':
+        dip = 70 * np.random.rand() + 10
+        rake = 15 * np.random.randn() + 90
+        while rake > 150 or rake < 30:
+            rake = 15 * np.random.randn() + 90
+    else:
+        dip, rake = np.nan, np.nan
+        print('Error no defined scale relation to determine dip and rake')
+
+    return dip, rake
 
 def computeSmallScalUni(timi):
     '''
@@ -162,19 +181,37 @@ def computeSmallScalUni(timi):
     phaseT = np.exp(theta0 * 1j)
     return RF_SCV_1dVK(ktt, 0.089, phaseT)
 def computeSlip(Mo, Dks, Dkd, Vs, Rho, dll, dww, loc, ade, D_u, cdd, ws, lTapSlp=0.8, cmax=4000):
+    '''
+
+    :param Mo: Seismic moment
+    :param Dks: strike direction wave number matrix
+    :param Dkd: dip direction wave number matrix
+    :param Vs: Shear velocity matrix
+    :param Rho: Density matrix
+    :param dll: strike direction step grid
+    :param dww: dip direction step grid
+    :param loc: [cll, cww, 1+H]
+    :param ade:
+    :param D_u: Slip distribution object scipy
+    :param cdd:
+    :param ws:
+    :param lTapSlp: minimial similitud after tappering to consider good the realization
+    :param cmax: max number of tries
+    :return:
+    '''
     val = True
     ccS = -1
-
+    Slp=np.empty(Vs.shape)
     # slip computation
     while val:
         theta0 = np.random.rand(Dks.shape[0], Dkd.shape[1]) * 2 * np.pi
         theta0[0, 0] = 0.0
-        phaseS = np.exp(theta0 * 1j)
+        EphaseS = np.exp(theta0 * 1j)
 
-        Slp = VKfield2D([loc[0], loc[1], loc[2]], Dks, Dkd, phaseS)
+        Fld = VKfield2D([loc[0], loc[1], loc[2]], Dks, Dkd, EphaseS)
 
         #  Transformation
-        Slp[np.unravel_index(np.argsort(Slp.flatten()), Slp.shape)] = np.sort(D_u.rvs(size=Slp.size))
+        Slp[np.unravel_index(np.argsort(Fld.flatten()), Slp.shape)] = np.sort(D_u.rvs(size=Slp.size))
 
         #  Tapper check
         Swt = Slp.copy()
@@ -183,32 +220,63 @@ def computeSlip(Mo, Dks, Dkd, Vs, Rho, dll, dww, loc, ade, D_u, cdd, ws, lTapSlp
         ccS += 1
         val = not np.sum(Slp) / np.sum(Swt) > lTapSlp and ccS < cmax
 
+        if val:
+            #  Transformation
+            Slp[np.unravel_index(np.argsort(-Fld.flatten()), Slp.shape)] = np.sort(D_u.rvs(size=Slp.size))
 
-    return Slp * Mo / np.sum(dll * dww * Slp * Rho * Vs ** 2), np.logical_not(val)
+            #  Tapper check
+            Swt = Slp.copy()
+            Slp = Tapper(Swt, cdd, ws, ade)
 
-def computeVKParams(LI, WI, Mw, Sty):
+            val = not np.sum(Slp) / np.sum(Swt) > lTapSlp and ccS < cmax
+    return Slp * Mo / np.sum(dll * dww * Slp * Rho * Vs ** 2), np.logical_not(val), theta0
+
+def computeSlipFromTheta(theta0, Mo, Dks, Dkd, Vs, Rho, dll, dww, loc, ade, D_u, cdd, ws, lTapSlp=0.8):
+
+    # slip computation
+    EphaseS = np.exp(theta0 * 1j)
+
+    Slp = VKfield2D([loc[0], loc[1], loc[2]], Dks, Dkd, EphaseS)
+
+    #  Transformation
+    Slp[np.unravel_index(np.argsort(Slp.flatten()), Slp.shape)] = np.sort(D_u.rvs(size=Slp.size))
+
+    #  Tapper check
+    Swt = Slp.copy()
+    Slp = Tapper(Swt, cdd, ws, ade)
+
+
+    return Slp * Mo / np.sum(dll * dww * Slp * Rho * Vs ** 2)
+
+def computeVKParams(LI, WI, LMw, Sty, th=2.5):
     '''
 
     :param LI: -array- Length of each realization
     :param WI: -array- Width of each realization
-    :param Mw: -float- Magnitude earthquake
+    :param LMw: -array- Magnitude earthquake
     :param Sty: -string- Style of the source SS: Strike-Slip SD:Slip-Dip
+    :param th: -float- threshold to keep a realization in terms of std, outside of it the value is remplaced
     :return:
     '''
-    niter = LI.shape[0]
+    niter = LI.size
+    var=np.random.randn(niter)
+    res=np.any([var<-th, var>th], axis=0)
+    while np.any(res):
+        var[res] = np.random.randn(np.sum(res))
+        res = np.any([var < -2.5, var > 2.5], axis=0)
     if Sty == 'SS':
-        Lcll = 2 * np.pi * np.mean([10**(-2.928 + 0.588 * Mw*np.ones(niter)), 1.855 + 0.341*LI*1E-3,
+        Lcll = 2 * np.pi * np.mean([10**(-2.928 + 0.588 * LMw), 1.855 + 0.341*LI*1E-3,
                                 -4.870 + 0.741*WI*1E-3], axis=0) * 1E3
-        Lcll *= 10**(np.random.randn(niter)*0.19)
+        Lcll *= 10 ** (var * 0.19)
     elif Sty =='SD':
-        Lcll = 2 * np.pi * np.mean([10 ** (-2.433 + 0.492 * Mw * np.ones(niter)), 1.096 + 0.314 * LI * 1E-3,
+        Lcll = 2 * np.pi * np.mean([10 ** (-2.433 + 0.492 * LMw), 1.096 + 0.314 * LI * 1E-3,
                                     1.832 + 0.449 * WI * 1E-3], axis=0) * 1E3
-        Lcll *= 10 ** (np.random.randn(niter) * 0.14)
+        Lcll *= 10 ** (var * 0.14)
 
     else:
-        Lcll = 2 * np.pi * np.mean([10 ** (-2.595 + 0.527 * Mw * np.ones(niter)), 1.541 + 0.326 * LI * 1E-3,
+        Lcll = 2 * np.pi * np.mean([10 ** (-2.595 + 0.527 * LMw), 1.541 + 0.326 * LI * 1E-3,
                                     6.072 + 0.416 * WI * 1E-3], axis=0) * 1E3
-        Lcll *= 10 ** (np.random.randn(niter) * 0.19)
+        Lcll *= 10 ** (var * 0.19)
 
     Lcww = Lcll.copy()
 
@@ -229,12 +297,12 @@ def computeAveRiseTime(reg, Mw):
     elif reg == 'Miy':  # Miyake et al, 2003
         trp = 10 ** (-3.34 + 0.5 * Mw)  # 10**(-2.66+0.439*Mw)
         strp = 0.1
-    elif reg == 'M&H':  # Melgar and Hayes, 2003
+    elif reg == 'M&H':  # Melgar and Hayes, 2017
         trp = 10 ** (-2.66 + 0.439 * Mw)  # 10**(-2.66+0.439*Mw)
         strp = 0.15
     elif reg == 'Gus':  # Gusev and Chebrov, 2019
         trp = 10 ** (-3.01 + 0.498 * Mw)  # 10**(-2.66+0.439*Mw)
-        strp = 0.15
+        strp = 0.3
     else:
         print('No-scale for average rise time')
         print(reg)
@@ -282,19 +350,19 @@ def Tapper(SlpO, cdd, ws, ade):
         Slp[:, -ade[1]:] = 0.0
     return Slp
 
-def VKfield2D(loc, Dks, Dkd, phase):
+def VKfield2D(loc, Dks, Dkd, Ephase):
     '''
 
     :param loc: [length correlation L, length correlation W, H+1]
     :param Dks: Wave numbers in strike direction
     :param Dkd: Wave numbers in dip direction
-    :param phase: exp(i*theta)
+    :param ExpPhase: exp(i*theta)
     :return: computed Slip
     '''
     sK = (loc[0] * Dks) ** 2 + (loc[1] * Dkd) ** 2
     Sg = np.sqrt(1 / (1 + sK) ** loc[2])
 
-    return np.fft.irfft2(Sg * phase)
+    return np.fft.irfft2(Sg * Ephase)
 
 def Yoffe_traingleReg(timiR, to, Tr, tPic, tol=0.0):
     '''
@@ -366,11 +434,25 @@ def Yoffe_traingleReg(timiR, to, Tr, tPic, tol=0.0):
     return kappa*yoffe
 class Rupture(object):
 
-    def __init__(self, Mo, L, W):
+    def __init__(self, Mo, L, W, Sty, SuD=None, Mec=None, index=0):
+        '''
+
+        :param Mo: -float- Seismic moment
+        :param L: -float- Length in the strike direction in meters
+        :param W: -float- Width in the dip direction in meters
+        :param index: -int- Source Index
+        :param Sty: -String- Type of fault (--> SS: Strike-Slip, SD:Slip-Dip)
+        :param SuD: -String- Type of fault2 (--> SS or None: Strike-Slip CR: Crustal-Dip SLip SU: Subduction-Dip)
+        :param Mec: -String- Type of fault3 (--> SS or None: Strike-Slip NS: Normal Slip RS: Reverse)
+        '''
         self.Mo = Mo
         self.L = L
         self.W = W
         self.Mw = (np.log10(Mo)-9.05)/1.5
+        self.index = index
+        if Sty=='SS': self.Sty = (Sty, Sty, Sty)
+        elif Sty=='SD':
+            self.Sty = (Sty, SuD, Mec)
 
     def computeSmallScaleVar(self, timi):
         '''
@@ -440,6 +522,12 @@ class Rupture(object):
         self.Pos = Pos
 
     def assingMaterialProp(self, Vs, Rho):
+        '''
+
+        :param Vs: -numpy array- Shear velocuty at each subfult
+        :param Rho: -numpy array- Density at each subfult
+        :return:
+        '''
         self.Vs = Vs
         self.Rho = Rho
 
@@ -460,7 +548,7 @@ class Rupture(object):
         '''
         Assing to STFs the final STF at each subfault, store in a optimize way (0, to,to+dt,..., to+1.2tr, tf)
         :param dtt: step of time
-        :param SSVadd: -boolean- add SCV
+        :param SSVadd: -boolean- add Small scale Variations
         :return:
         '''
 
@@ -575,18 +663,16 @@ class Rupture(object):
 
         self.STFs = Mop * self.Mo / np.sum(Mop[:, :, -1])
 
-    def setHypocenter(self, Sty, SuD, hypo=None):
+    def setHypocenter(self, hypo=None):
         '''
         Computes the hypocenter following a probability distribution of Mai et al, 2005
-        :param Sty: -string- Style of the source SS: Strike-Slip SD:Slip-Dip
-        :param SuD: -string- Type of slip-dip fault SS:'Strike-Slip' CR: Crustal-Dip SU: Subduction-Dip-Slip
         :param hypo: hypocenter, None means it computes randomlly
         :return:
         '''
         niteH=1
         if hypo is None:
             #  Hypocenter statistics
-            if Sty == 'SS':
+            if self.Sty[0] == 'SS':
                 alphaM = 1.928
                 betaM = 0.868
 
@@ -595,17 +681,17 @@ class Rupture(object):
 
                 alphaZ = 0.626
                 betaZ = 3.921
-            elif Sty == 'SD':
+            elif self.Sty[0] == 'SD':
                 alphaM = 2.216
                 betaM = 0.623
 
                 alphaT = 0.454
                 betaT = 1.874
 
-                if SuD == 'CR':
+                if self.Sty[1] == 'CR':
                     alphaZ = 0.692
                     betaZ = 3.394
-                elif SuD == 'SU':
+                elif self.Sty[1] == 'SU':
                     alphaZ = 12.658
                     betaZ = 0.034
                 else:
@@ -674,7 +760,7 @@ class Rupture(object):
                 hist[hist == 0] = 1 / self.Slip.size
                 bb = 0.5 * (bins[1:] + bins[:-1])
 
-                if Sty == 'SD' and SuD != 'CR':
+                if self.Sty[0] == 'SD' and self.Sty[1] != 'CR':
                     Tpdf = gamma.pdf(hzz, alphaZ, loc=0, scale=betaZ)
                 else:
                     Tpdf = weibull_min.pdf(hzz, betaZ, loc=0, scale=alphaZ)
@@ -719,7 +805,7 @@ class Rupture(object):
                 Hval= Hval and np.min(Rhyp[np.all([self.Slip>0.33*self.Slip[ima],self.Slip<0.66*self.Slip[ima]],
                                                   axis=0)]) < 0.3
 
-        else:chyo=hypo
+        else:chyo = hypo
         self.hypo = chyo
 
     def setOnsetTimes(self, sh=0.01):
@@ -737,16 +823,17 @@ class Rupture(object):
             #  Rake variations
             theta0 = np.random.rand(self.Dks.shape[0], self.Dkd.shape[1]) * 2 * np.pi
             theta0[0, 0] = 0.0
-            phaseRa = np.exp(theta0 * 1j)
+            EphaseRa = np.exp(theta0 * 1j)
 
-            Ra = VKfield2D([self.cll, self.cww, self.H], self.Dks, self.Dkd, phaseRa)
+            Ra = VKfield2D([self.cll, self.cww, self.H], self.Dks, self.Dkd, EphaseRa)
             Ra[np.unravel_index(np.argsort(Ra.flatten()), Ra.shape)] = np.sort(D_Ra.rvs(size=Ra.size))
             Ra += an
             self.rakes = Ra
+            self.phaseRakes = theta0
         else:
             self.rakes = an*np.ones(self.Dll.shape)
 
-    def setRiseTimePattern(self, loc, tacM, trp, cUTr=None, vpkMax=6.5, cmax=4000):
+    def setRiseTimePattern(self, loc, tacM, trp, cUTr=None, vpkMax=6.5, cmax=4000, lTapSlp=0.8, TrZo=None):
         '''
 
         :param loc: [float, float, float] [lengtCorrelation strike, lengtCorrelation dip, 1+Hurts exponent]
@@ -754,47 +841,66 @@ class Rupture(object):
         :param trp: -float- Average rise time
         :param cUTr: [float, float] correlation range between slip and rise time
         :param vpkMax: -float- maximal slip rate
-        :param cmax:
+        :param cmax: -int- maximal number of tries before report a fail
         :return:
         '''
-        Bfa = np.ones(self.Dll.shape)
-
+        if TrZo is None: Bfa = np.ones(self.Dll.shape)
+        else: Bfa = TrZo
         if cUTr is None: cUTr = [0.50, 0.90]
-        val = True
+
         self.trp = trp  # average rise time
         self.vpkMax = vpkMax  # Maximal slip rate
-        ccTr = -1
-        while val:
-            Trr, succ = computeSlip(self.Mo, self.Dks, self.Dkd, self.Vs, self.Rho, self.dll, self.dww,
-                              loc, self.ade, self.D_u, self.cdd, self.ws)
-            Trr = np.sqrt(Trr)
+        ccTr = 0
+        succ = False
+        eta = np.linspace(0, 4, cmax + 1)
+        F1 = VKfield2D(loc, self.Dks, self.Dkd, np.exp(self.phaseSlip * 1j))
 
-            #  correcting rise time distribution
-            Trr *= Bfa
-            Trr *= trp / np.mean(Trr[self.Slip > 0])
-            mcc = 0.02 * trp
-            Trr[Trr < mcc] = mcc
+        valS=True
+        while valS and ccTr < cmax:
+            theta0 = np.random.rand(self.Dks.shape[0], self.Dkd.shape[1]) * 2 * np.pi
+            theta0[0, 0] = 0.0
+            Ephase = np.exp(theta0 * 1j)
+            Fld=VKfield2D(loc, self.Dks, self.Dkd, Ephase)
 
-            crt = np.corrcoef(self.Slip.flatten(), Trr.flatten())[0, 1]
-            eva0 = crt > cUTr[0] and crt < cUTr[1]
+            cc=-1
+            while valS and cc<3:
+                ccTr += 0.25
+                cc=cc+1
+                Slp = eta[int(ccTr)] * F1 *(-1)**cc + Fld*(-1)**(cc//2)
+                #  Transformation
+                Slp[np.unravel_index(np.argsort(Slp.flatten()), Slp.shape)] = np.sort(self.D_u.rvs(size=Slp.size))
 
-            # coTr=True
-            # Vpeak
-            tac = Trr * (tacM / np.mean(Trr))  # Tpeak computation!!!
-            tac[tac < 0.01] = 0.01
-            maTr = Trr < 1.2 * tac
-            Trr[maTr] = 1.2 * tac[maTr]
+                #  Tapper check
+                Swt = Slp.copy()
+                Slp = Tapper(Swt, self.cdd, self.ws, self.ade)
 
-            self.tac = tac
-            self.vpk = estimateVpeak(self.Slip, Trr, tac)
-            eva1 = np.sum(self.vpk > vpkMax) / self.vpk.size < 0.02
+                if not np.sum(Slp) / np.sum(Swt) > lTapSlp and ccTr < cmax:
+                    Trr = np.sqrt(Slp)
+                    #  correcting rise time distribution
+                    Trr *= Bfa
+                    Trr *= trp / np.mean(Trr[self.Slip > 0])
+                    mcc = 0.02 * trp
+                    Trr[Trr < mcc] = mcc
 
-            val = ccTr < cmax and (not (eva1) or not (eva0))  # if the errors afer few and loca, we manage
-            # Those exceptions individualy
-            ccTr += 1
-        succ = np.logical_not(val)
-        if succ:
-            self.Trise = Trr
+                    crt = np.corrcoef(self.Slip.flatten(), Trr.flatten())[0, 1]
+                    eva0 = crt > cUTr[0] and crt < cUTr[1]
+
+                    if eva0:
+                        # coTr=True
+                        # Vpeak
+                        tac = Trr * (tacM / np.mean(Trr))  # Tpeak computation!!!
+                        tac[tac < 0.01] = 0.01
+                        maTr = Trr < 1.2 * tac
+                        Trr[maTr] = 1.2 * tac[maTr]
+
+                        self.tac = tac
+                        self.vpk = estimateVpeak(self.Slip, Trr, tac)
+                        succ = np.sum(self.vpk > vpkMax) / self.vpk.size < 0.02
+                        if succ:
+                            self.Trise = Trr
+                            self.phaseTrise = theta0
+                            valS = False
+
         return succ
 
     def setRiseTimePatternHF(self, loc, tacM, trp, phaseI, cUTr=None, vpkMax=6.5, cmax=4000):
@@ -815,7 +921,7 @@ class Rupture(object):
         ccTr = -1
         val=True
         while val:
-            Trr, succ = addHFSlip(self.Mo, self.Dks, self.Dkd, self.Vs, self.Rho, self.dll, self.dww,
+            Trr, succ, phaseTr = addHFSlip(self.Mo, self.Dks, self.Dkd, self.Vs, self.Rho, self.dll, self.dww,
                                     loc, self.ade, self.D_u, self.cdd, self.ws, phaseI, self.F, 0.6)
             Trr = np.sqrt(Trr)
 
@@ -844,6 +950,7 @@ class Rupture(object):
         succ = np.logical_not(val)
         if succ:
             self.Trise = Trr
+            self.phaseTrise = phaseTr
         return succ
 
     def setRuptVeloc(self, CVrr, stdVr, loc, rnuc=1500, Vor=0.7, gbou=1000, Vfr=0.4,
@@ -858,7 +965,7 @@ class Rupture(object):
         :param gbou:  Gap to the borders where Vr decays
         :param Vfr: Vr/Vs deduction at the borders
         :param limsVr: [float, float] maximal and minimal Vr/Vs ratio
-        :param maxT: maximal onset time +1.2Tr
+        :param maxT: limit for maximal (onset time +1.2Tr)
         :param cVpVr: [float, float] Vr/Vs correlation range with vpeak
         :param cmax: maximal number of tries
         :return: if the function success
@@ -895,14 +1002,21 @@ class Rupture(object):
 
         succ = False
         ccVr = -1
-        while not succ and ccVr < cmax:
-            while not(succ) and ccVr < cmax:
-                theta0 = np.random.rand(self.Dks.shape[0], self.Dkd.shape[1]) * 2 * np.pi
-                theta0[0, 0] = 0.0
-                phase = np.exp(theta0 * 1j)
+        eta=np.linspace(0, 3, cmax+1)
+        F1 = VKfield2D(loc, self.Dks, self.Dkd, np.exp(self.phaseSlip * 1j))
+        while not(succ) and ccVr < cmax:
+            ccVr += 1
+            theta0 = np.random.rand(self.Dks.shape[0], self.Dkd.shape[1]) * 2 * np.pi
+            theta0[0, 0] = 0.0
+            Ephase = np.exp(theta0 * 1j)
 
-                Dvv = VKfield2D(loc, self.Dks, self.Dkd, phase)
-                Dvv*=-np.sign(np.corrcoef(self.vpk.flatten(), Dvv.flatten())[0, 1])
+            FI=VKfield2D(loc, self.Dks, self.Dkd, Ephase)
+
+            succ = False
+            cc=-1
+            while not(succ) and cc<3:
+                cc=cc+1
+                Dvv = eta[ccVr]*F1*(-1)**cc+FI*(-1)**(cc//2)
                 Dvv[np.unravel_index(np.argsort(Dvv.flatten()), Dvv.shape)] = np.sort(self.D_Vr.rvs(size=Dvv.size))
 
                 Dvv = ZoDvR*ZoDv * (1 - Dvv)
@@ -910,13 +1024,11 @@ class Rupture(object):
                 VrrF = Dvv * self.Vs
 
                 cmt = np.corrcoef(self.vpk.flatten(), VrrF.flatten())[0, 1]
-                succ = cmt > cVpVr[0] and cmt < cVpVr[1]
-                ccVr += 1
-            self.Vr = VrrF
-            self.setOnsetTimes()
-            succ = np.sum(self.To + self.Trise * 1.2 > maxT)/self.To.size<0.01
-        succ = ccVr<cmax
-
+                if cmt > cVpVr[0] and cmt < cVpVr[1]:
+                    self.Vr = VrrF
+                    self.setOnsetTimes()
+                    succ = np.sum(self.To + self.Trise * 1.2 > maxT) / self.To.size < 0.01
+        succ = ccVr < cmax
         return succ
 
     def setRuptVelocHF(self, CVrr, stdVr, loc, phaseI, gbou=1000, Vfr=0.4, limsVr=None, maxT = 1E10,
@@ -988,13 +1100,13 @@ class Rupture(object):
 
         return succ
 
-    def setSlipPattern(self, loc, tapPL_G=None, umax=None, vumax=1.0):
+    def setSlipPattern(self, loc, tapPL_G=None, umax=None, randUmax=True):
         '''
 
         :param loc: [float, float, float] [lengtCorrelation strike, lengtCorrelation dip, 1+Hurts exponent]
         :param tapPL_G:  Tapper definition at each edge [-x,+x,-y,+y] default (None): [0.15, 0.15, 0.15, 0.15]
         :param umax: float, maximal slip, None it computes from a regresion on average slip
-        :param vumax: float, variation of the regresion for umax
+        :param vumax: float, variation of the regression for umax
         :return: if a Slip patter was solved
         '''
         if tapPL_G is None: tapPL_G = np.asarray([0.15, 0.15, 0.15, 0.15])
@@ -1004,10 +1116,8 @@ class Rupture(object):
         self.H = loc[2]-1
         uni = self.Mo / np.sum(self.dll * self.dww * self.Rho * self.Vs ** 2)
 
-        if umax is None: umax = vumax*10 ** (0.95 * np.log10(uni) + 0.62)  # maximal slip
 
-        if uni / umax > 0.4:
-            umax = uni / 0.4
+        if umax is None: umax = computeUmax(uni, randUmax)[0]
         self.umax = umax
 
         ep = lambda uc: uni - truncexpon.mean(b=umax / uc, scale=uc)
@@ -1020,9 +1130,11 @@ class Rupture(object):
                         np.asarray(np.ceil(self.tapPL[2:] / self.dll).astype(int)))
         self.ws = [np.hanning(2 * self.cdd[nd]) for nd in range(self.cdd.size)]
 
-        Slip, succ = computeSlip(self.Mo, self.Dks, self.Dkd, self.Vs, self.Rho, self.dll, self.dww,
+        Slip, succ, thethaS = computeSlip(self.Mo, self.Dks, self.Dkd, self.Vs, self.Rho, self.dll, self.dww,
                               loc, self.ade, self.D_u, self.cdd, self.ws)
-        if succ: self.Slip = Slip
+        if succ:
+            self.Slip = Slip
+            self.phaseSlip = thethaS
 
         return succ
 
@@ -1058,9 +1170,11 @@ class Rupture(object):
                         np.asarray(np.ceil(self.tapPL[2:] / self.dll).astype(int)))
         self.ws = [np.hanning(2 * self.cdd[nd]) for nd in range(self.cdd.size)]
 
-        Slip, succ = addHFSlip(self.Mo, self.Dks, self.Dkd, self.Vs, self.Rho, self.dll, self.dww,
+        Slip, succ, phaseS = addHFSlip(self.Mo, self.Dks, self.Dkd, self.Vs, self.Rho, self.dll, self.dww,
                               loc, self.ade, self.D_u, self.cdd, self.ws, phaseI, self.F, 0.6)
-        if succ: self.Slip = Slip
+        if succ:
+            self.Slip = Slip
+            self.phaseSlip = phaseS
 
         return succ
 

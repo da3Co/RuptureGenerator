@@ -24,14 +24,14 @@ def fourSpec(data, frem, tnd=-1):
 from scipy.io import savemat
 mpl.use('TkAgg')  # interactive mode works with this, pick one
 suf='Example1'
-fold = 'Results/%s/'%suf#'Sources/CulS2NN/'#
+fold = 'Results/%s/Sources/'%suf#'Sources/CulS2NN/'#
 folp = 'plots/%s/Sources/'%suf# # Folder to save the plots   1_12
 envio=None#'envio/'
 fss = [6.4, 4.8]  # [4.8, 6.4]
 time = np.arange(0, 20, 1)  # dynamic plots times 30
 ffb = (0.01, 2.5)  # opt range black dash line
 levTo = np.linspace(0, 20, 11)
-levS = np.linspace(0, 6.0, 31)
+levS = np.arange(0, 6.1, 0.25)
 levVpk = np.arange(0, 6.5, 0.1)
 levRVr = np.arange(0.6, 1.01, 0.025)
 levTr = np.arange(0, 4.5, 0.25)
@@ -45,7 +45,7 @@ lpoi = [(0.32, 0.87), (0.55, 0.7), (0.875, 0.76), (0.4, 0.5), (0.72, 0.48), (0.2
 # cmap
 p=0.2
 colormap = plt.cm.get_cmap('turbo')
-colA = np.asarray([colormap(pp) for pp in np.linspace(0, 1, 18)])
+colA = np.asarray([colormap(pp) for pp in np.linspace(0, 1, levS.size)])
 nnb=int(np.round(colA.shape[0]*p))
 colN=1-np.transpose(np.tile(np.arange(nnb)/nnb, (4,1)))*np.tile((1-colA[nnb]), (nnb,1))
 cma = np.append(colN, colA[nnb:], axis=0)

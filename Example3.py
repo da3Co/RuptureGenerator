@@ -53,15 +53,16 @@ def addHFSource(sii, LRR, Inp, patt=True):
                 #  Write sources
                 RR.writePickle(foldS + '%s%d.pickle' % (sufi, sii))
 
-    csus=sucS and sucTr and sucV
-    if not(csus) and patt:
-        ii=1
-        succ=False
-        while ii<nmit or not(succ):
-            ii+=1
-            succ=addHFSource(sii, LRR, Inp, False)
-        if not(succ):
-            print('Rupture no generated: [%r, %r, %r, %r]' %(sucS, sucTr, sucV, hasattr(RR, 'To')))
+    csus = sucS and sucTr and sucV
+    if not (csus) and patt:
+        ii = 0
+        succ = False
+        while ii < nmit and not (succ):
+            ii += 1
+            succ = addHFSource(sii, LRR, Inp, False)
+            # print('Fail try: [%d, %r, %r, %r, %r]' % (sii, sucS, sucTr, sucV, hasattr(RR, 'To')))
+        if not (succ):
+            print('Rupture no generated: [%d, Slp:%r, Tr:%r, Vr:%r, %r]' % (sii, sucS, sucTr, sucV, hasattr(RR, 'To')))
 
     return csus
 
@@ -85,8 +86,8 @@ def CSuelo(zz):
     return Vp, Vs, Rho
 if __name__ == '__main__':
     nreal = 10  # Number of realizations
-    foldS = 'Results/Example3/'  # Output folder
-    dll, dww = 2.0 * 100.0, 2.0 * 100.0  #  Grid spacing in the fault
+    foldS = 'Results/Example3/Sources/'  # Output folder
+    dll, dww = 200.0, 200.0  #  Grid spacing in the fault
     dtt = 1E-3  # Step time
     fileE = 'CulS0/CulS0'  # Initial Source
     tapPL_G = np.asarray([0.15, 0.15, 0.15, 0.0])  # Tapper definition [-x,+x,-y,+y]
@@ -95,13 +96,12 @@ if __name__ == '__main__':
     randUmax = True  # Random selection of the maximal slip
     addSSV = True  # Add small scale variations
     sufi = 'Si_'  #  Suffix names of the sources
-    KtacM = 0.08  # Tpeak average
+    KtacM = 0.14  # Tpeak average
     # ----------------------------------------------  Fixed inputs
     H = 0.77  # Mai and Beroza, 2002
     Hvr = -0.3
     N = 4  # Sharpness transition parameter
     stRa = np.deg2rad(15)  # --radians-- standard deviation of rake variations (Graves Pitarka, 2010)
-    vpkMax = 6.5  # Maximal slip rate
     #  ----------------------------------------------------------------------------------------------  End inputs
     nmit = 25  # max number of iterations to solve a source
     if not path.exists('%s' % foldS): makedirs(foldS[:-1])
@@ -127,7 +127,7 @@ if __name__ == '__main__':
     #  Generation of the new fault
     Mo = fe.attrs['Mo']
     Mw = (np.log10(Mo) - 9.05) / 1.5
-    RR = rg.Rupture(Mo, L_I, W_I)
+    RR = rg.Rupture(Mo, L_I, W_I, None, None)
 
     PoiR_I=[hypoP[0]/L_I, hypoP[1]/W_I]
 
@@ -141,7 +141,7 @@ if __name__ == '__main__':
 
     #  set Hypocenter
     chypo = int(np.round(hypoP[0]/RR.dll)), int(np.round(hypoP[1]/RR.dww))
-    RR.setHypocenter(None, None, chypo)
+    RR.setHypocenter(chypo)
 
     #  Estimation correlations lengths
     Mof0 = np.zeros((nll0.size, nww0.size))
@@ -201,17 +201,20 @@ if __name__ == '__main__':
     phaseI_Vr = np.exp(theta0 * 1j)
 
     trp_I = np.nanmean(fe['trise'])
-    fe.close()
 
+    tac = trrP * (KtacM / trp_I)
+    vpk = rg.estimateVpeak(SlpP/((nll0[2]-nll0[1])*(nww0[2]-nww0[1])*np.mean(fe['Rho'][:])*np.mean(fe['Vss'][:])**2),
+                           trrP, tac)
+    mvtk=1.1*np.max(vpk) # Maximal slip peak vel
+    fe.close()
 
     if randUmax: LVumaxI = umaxP*10**(0.1 * np.random.randn(nreal))
     else: LVumaxI = umaxP*np.ones(nreal)
 
-    Inp = (Mo, L_I, W_I, stri, dip, rake, loc, dll, dww, tapPL_G, LVumaxI, phaseSP, stRa, trp_I, vpkMax, phaseI_Tr,
+    Inp = (Mo, L_I, W_I, stri, dip, rake, loc, dll, dww, tapPL_G, LVumaxI, phaseSP, stRa, trp_I, mvtk, phaseI_Tr,
            CVrr_I, stdVr, phaseI_Vr, addSSV, sufi)
 
     #addHFSource(0, [RR]*nreal, Inp)
-
     tic = time()
     func = partial(addHFSource, LRR=[copy.deepcopy(RR) for sii in range(nreal)], Inp=Inp, patt=True)
     with Pool(ncore) as pool:

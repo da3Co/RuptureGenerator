@@ -24,14 +24,14 @@ def computeSource(sii, Inp, patt=True):
     :return: Creates a rupture process and write it to hdf5 files
     '''
 
-    (Mo, LI, WI, Lstri, Ldip, Lrake, Lcll, Lcww, LtrpI, LCVrrI, LcllVr, LcwwVr, dll, dww, PoiR_I, PoiL, tapPL_G,
+    (LMo, LI, WI, Lstri, Ldip, Lrake, Lcll, Lcww, LtrpI, LCVrrI, LcllVr, LcwwVr, dll, dww, PoiR_I, PoiL, tapPL_G,
         Vor, rnuc, Vfr, gbou, stRa, H, Hvr, cUTr, cVpVr, KtacM, vpkMax, limsVr, nmit, randUmax, addSSV, LVumaxI, Sty,
-         SuD, stdVr, dtt, foldS, sufi) = Inp
+         SuD, LMec, stdVr, dtt, foldS, sufi) = Inp
 
     np.random.seed(np.random.randint(1, 10E3) * (1 + sii))
-    RR = rg.Rupture(Mo, LI[sii], WI[sii])
+    RR = rg.Rupture(LMo[sii], LI[sii], WI[sii], LSty[sii], LSuD[sii], LMec[sii], sii)
 
-    RR.assingLocationsOrientations(Lstri[sii], Ldip[sii], Lrake[sii], dll, dww, PoiR_I, PoiL)
+    RR.assingLocationsOrientations(Lstri[sii], Ldip[sii], Lrake[sii], dll, dww, PoiR_I, LPoiL[sii])
     sucS, sucTr, sucV = False, False, False
 
     _, Vs, Rho = CSuelo(RR.Pos[2])
@@ -39,44 +39,58 @@ def computeSource(sii, Inp, patt=True):
 
     loc = [Lcll[sii], Lcww[sii], 1 + H]
     #  Slip pattern definition
-    if randUmax: sucS = RR.setSlipPattern(loc, tapPL_G, None, LVumaxI[sii])
-    # else: RR.setSlipPattern(loc, tapPL_G,umax )
+    sucS = RR.setSlipPattern(loc, tapPL_G, None, LVumaxI[sii])#if randUmax:
+    #else: RR.setSlipPattern(loc, tapPL_G,umax )
 
     if sucS:
         #  Rakes variation definition
         RR.setRakesVariations(stRa)
 
-        #  Rise Time definition
-        sucTr = RR.setRiseTimePattern(loc, KtacM, LtrpI[sii], cUTr, vpkMax)
+        sea = True
+        isea = -1
+        while sea and isea < 4:
+            #  Rise Time definition
+            sucTr = RR.setRiseTimePattern(loc, KtacM, LtrpI[sii], cUTr, vpkMax, cmax=500)
 
-        if sucTr:
-            #  Hypocenter location
-            RR.setHypocenter(Sty, SuD)
+            if sucTr:
+                #  Hypocenter location
+                RR.setHypocenter()
 
-            #  Rupture velocity pattern and define Onset times
-            locVr = [LcllVr[sii], LcllVr[sii], 1 + Hvr]
-            sucV = RR.setRuptVeloc(LCVrrI[sii], stdVr, locVr, rnuc, Vor, gbou, Vfr, limsVr=limsVr, cVpVr=cVpVr)
-            if sucV:
-                #  Compute STF at each subfault
-                RR.generateSTFOpt(dtt, addSSV)
+                #  Rupture velocity pattern and define Onset times
+                locVr = [LcllVr[sii], LcllVr[sii], 1 + Hvr]
+                sucV = RR.setRuptVeloc(LCVrrI[sii], stdVr, locVr, rnuc, Vor, gbou, Vfr,
+                                       limsVr=limsVr, cVpVr=cVpVr, cmax=1000)
 
-                #  Write sources
-                RR.writePickle(foldS + '%s%d.pickle' % (sufi, sii))
+                if sucV:
+                    sea=False
+                    #  Compute STF at each subfault
+                    RR.generateSTFOpt(dtt, addSSV)
+
+                    #  Write sources
+                    RR.writePickle(foldS + '%s%d.pickle' % (sufi, sii))
+            isea += 1
 
     csus=sucS and sucTr and sucV
-    if not(csus) and patt:
-        ii=1
-        succ=False
-        while ii<nmit or not(succ):
-            ii+=1
-            succ=computeSource(sii, Inp, False)
-        if not(succ):
-            print('Rupture no generated: [%r, %r, %r, %r]' %(sucS, sucTr, sucV, hasattr(RR, 'To')))
+    if not (csus) and patt:
+        ii = 0
+        succ = False
+        while ii < nmit and not (succ):
+            ii += 1
+            succ = computeSource(sii, Inp, False)
+            # print('Fail try: [%d, %r, %r, %r, %r]' % (sii, sucS, sucTr, sucV, hasattr(RR, 'To')))
+        if not (succ):
+            print('Rupture no generated: [%d, Slp:%r, Tr:%r, Vr:%r, %r]' % (sii, sucS, sucTr, sucV, hasattr(RR, 'To')))
 
     return csus
 
 def CSuelo(zz):
-    Da = np.loadtxt('geo/1DLA.txt', skiprows=1, delimiter=',')
+    '''
+
+    :param zz: matrix of depth
+    :return: Must return the Vp(no need), Vs, Rho at each point. In this case a 1D layerd geologic model defined in fgeo
+    '''
+    fgeo = 'geo/1DLA.txt'  # File with mechanical soil properties description
+    Da = np.loadtxt(fgeo, skiprows=1, delimiter=',')
     #  mechanical Properties  ------------------------------------------------------------------------------------
     Vs = Da[0][2] * np.ones(zz.shape)
     Vp = Da[0][1] * np.ones(zz.shape)
@@ -94,22 +108,23 @@ def CSuelo(zz):
         Qk[re] = dla[4]
     return Vp, Vs, Rho
 if __name__ == '__main__':
+    #  Inputs ----------------------------------------------------------------------------------------------------------
     nreal = 22  # Number of realizations
-    foldS = 'Results/Example2/'  # Output folder
-    dll, dww = 2.75 * 100.0, 2.75 * 100.0  #  Grid spacing in the fault
+    foldS = 'Results/Example2/Sources/'  # Output folder
+    dll, dww = 400.0, 400.0  #  Grid spacing in the fault
     dtt = 1E-3  # Step time
-    Mw = 6.5  # (np.log10(Mo) - 9.05) / 1.5
+    LMw = np.ones(nreal) * 6.5  # (np.log10(Mo) - 9.05) / 1.5
     Sty = 'SD'  # 'SD'#'SS' #--> SS: Strike-Slip SD:Slip-Dip
-    SuD = 'SU'  # 'SS'#'CR' # SU #--> SS:'Strike-Slip' CR: Crustal-Dip SU: Subduction-Dip-Slip
+    SuD = 'CR'  # 'SS'#'CR' # SU #--> SS:'Strike-Slip' CR: Crustal-Dip SU: Subduction-Dip-Slip
+    Mec = 'NS'  # Mechanism to find dip and rake randmolly. SS: Strike-Slip NS: Normal fault RS: Reverse fault
     sufi = 'Si_' #  Suffix names of the sources
-    regTr='Som'  # Regression to compute the average rise time; 'Som': Somerville et al. (1999),
+    regTr='M&H' # Regression to compute the average rise time; 'Som': Somerville et al. (1999),
     #               'Miy': Miyake et al, 2003 'M&H':  # Melgar and Hayes, 2003, 'Gus': Gusev and Chebrov, 2019
-
     # ------------------------------------------- Geometry inputs of the fault
     PoiR_I = np.asarray([0.5, 1.0])  # Relative location of a fix point (reference the left down corner)
-    PoiL = np.asarray([0, 0, -3.2E3])  # Absolute location of PoiR
+    PoiL = np.asarray([0, 0, -5.2E3])  # Absolute location of PoiR
     tapPL_G = np.asarray([0.15, 0.15, 0.15, 0.15])  # Tapper definition [-x,+x,-y,+y]
-    stri = 0  # Strike
+    strike = 0  # Strike
 
     CVrr_I = 0.75  # Average rupture velocity coefficient with respect Vs
     stdVr = 0.25  # Std rupture velocity coefficient with respect Vs
@@ -121,7 +136,6 @@ if __name__ == '__main__':
 
     randHyp = True  #  Random selection of the hypocenter? if not, PoiR defines the hypocenter
     randUmax = True  #  Random selection of the maximal slip
-    randOri = True  # Randomlly set the orientation based on the fault type
     randLW = (True, True)  # (strike dir, dip dir) [degrees]: Randomlly set the fault dimension based on the fault type
     addSSV = True  # Add small scale variations
     #----------------------------------------------  Fixed inputs
@@ -139,27 +153,35 @@ if __name__ == '__main__':
     if not path.exists('%s' % foldS): makedirs(foldS[:-1])
     ncore = cpu_count()
 
-    Mo = 10 ** (Mw * 1.5 + 9.05)
-    LI, WI, Lstri, Ldip, Lrake = rg.computeGeometryParams(nreal, Mw,Sty, SuD, stri, randLW, randOri)
-    LI = np.round(1E3 * LI / dll) * dll
-    WI = np.round(1E3 * WI / dww) * dww
+    Ori=np.asarray(list(map(lambda ii: rg.computeOrientationParams(Mec), range(nreal))))
+    Lstri, Ldip, Lrake = strike*np.ones(nreal), Ori[:,0], Ori[:,1]
+
+    LDi = np.asarray(list(map(lambda ii: rg.computeGeometryParams(LMw[ii], Sty, SuD, randLW), range(nreal))))
+    LI = np.round(LDi[:, 0] / dll) * dll
+    WI = np.round(LDi[:, 1] / dww) * dww
 
     if randUmax: LVumaxI = 10**(0.1 * np.random.randn(nreal))
     else: LVumaxI=None
-    Lcll, Lcww = rg.computeVKParams(LI, WI, Mw, Sty)
+    Lcll, Lcww = rg.computeVKParams(LI, WI, LMw, Sty)
     LcllVr = Lcll.copy()
     LcwwVr = Lcww.copy()
 
-    trp_I, strp = rg.computeAveRiseTime(regTr, Mw)
+    trp_I, strp = rg.computeAveRiseTime(regTr, LMw)
     LtrpI = trp_I * 10 ** (np.random.randn(nreal) * strp)
 
     LCVrrI = CVrr_I + np.random.randn(nreal) * stAVr
     LCVrrI[LCVrrI < 0.6] = 0.6
     LCVrrI[LCVrrI > 0.9] = 0.9
 
-    Inp=(Mo, LI, WI, Lstri, Ldip, Lrake, Lcll, Lcww, LtrpI, LCVrrI, LcllVr, LcwwVr, dll, dww, PoiR_I, PoiL, tapPL_G,
+    LMo = 10 ** (LMw * 1.5 + 9.05)
+    LSty = [Sty] * nreal
+    LSuD = [SuD] * nreal
+    LMec = [Mec] * nreal
+    LPoiL = np.repeat([PoiL], nreal, axis=0)
+
+    Inp=(LMo, LI, WI, Lstri, Ldip, Lrake, Lcll, Lcww, LtrpI, LCVrrI, LcllVr, LcwwVr, dll, dww, PoiR_I, LPoiL, tapPL_G,
         Vor, rnuc, Vfr, gbou, stRa, H, Hvr, cUTr, cVpVr, KtacM, vpkMax, limsVr, nmit, randUmax, addSSV, LVumaxI, Sty,
-         SuD, stdVr, dtt, foldS, sufi)
+         SuD, LMec, stdVr, dtt, foldS, sufi)
     func = partial(computeSource, Inp=Inp, patt=True)
 
     #list(map(func, [0]))
