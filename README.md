@@ -11,3 +11,5 @@ To present the function of RuptG.py the files Examples, show practicale ways to 
   File Example3.py: it takes an initial description and enhance the High frequency part of it to generate several realizations.
   
 LectorFuente.py and LectorFuenteTot.py plot the main features of each generated rupture.
+
+File S_AxitraMult.py runs generated ruptures using Axitra to compute the ground motions on several locations.
