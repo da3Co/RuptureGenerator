@@ -26,7 +26,7 @@ def computeSource(sii, Inp, patt=True):
 
     (LMo, LI, WI, Lstri, Ldip, Lrake, Lcll, Lcww, LtrpI, LCVrrI, LcllVr, LcwwVr, dll, dww, PoiR_I, PoiL, tapPL_G,
         Vor, rnuc, Vfr, gbou, stRa, H, Hvr, cUTr, cVpVr, KtacM, vpkMax, limsVr, nmit, randUmax, addSSV, LVumaxI, Sty,
-         SuD, LMec, stdVr, dtt, foldS, sufi) = Inp
+         SuD, LMec, stdVr, dtt, foldS, sufi, randHyp) = Inp
 
     np.random.seed(np.random.randint(1, 10E3) * (1 + sii))
     RR = rg.Rupture(LMo[sii], LI[sii], WI[sii], LSty[sii], LSuD[sii], LMec[sii], sii)
@@ -54,7 +54,8 @@ def computeSource(sii, Inp, patt=True):
 
             if sucTr:
                 #  Hypocenter location
-                RR.setHypocenter()
+                if randHyp: RR.setHypocenter()
+                else: RR.setHypocenter((int(np.round(PoiR_I[0]*RR.nll.size)), int(np.round(PoiR_I[1]*RR.nww.size))))
 
                 #  Rupture velocity pattern and define Onset times
                 locVr = [LcllVr[sii], LcllVr[sii], 1 + Hvr]
@@ -181,7 +182,7 @@ if __name__ == '__main__':
 
     Inp=(LMo, LI, WI, Lstri, Ldip, Lrake, Lcll, Lcww, LtrpI, LCVrrI, LcllVr, LcwwVr, dll, dww, PoiR_I, LPoiL, tapPL_G,
         Vor, rnuc, Vfr, gbou, stRa, H, Hvr, cUTr, cVpVr, KtacM, vpkMax, limsVr, nmit, randUmax, addSSV, LVumaxI, Sty,
-         SuD, LMec, stdVr, dtt, foldS, sufi)
+         SuD, LMec, stdVr, dtt, foldS, sufi, randHyp)
     func = partial(computeSource, Inp=Inp, patt=True)
 
     #list(map(func, [0]))
