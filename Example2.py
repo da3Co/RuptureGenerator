@@ -25,7 +25,7 @@ def computeSource(sii, Inp, patt=True):
     '''
 
     (LMo, LI, WI, Lstri, Ldip, Lrake, Lcll, Lcww, LtrpI, LCVrrI, LcllVr, LcwwVr, dll, dww, PoiR_I, PoiL, tapPL_G,
-        Vor, rnuc, Vfr, gbou, stRa, H, Hvr, cUTr, cVpVr, KtacM, vpkMax, limsVr, nmit, randUmax, addSSV, LVumaxI, Sty,
+        Vor, rnuc, Vfr, gbou, stRa, H, Hvr, cUTr, cVpVr, KtacM, vpkMax, limsVr, nmit, randUmax, addSSV, Sty,
          SuD, LMec, stdVr, dtt, foldS, sufi, randHyp) = Inp
 
     np.random.seed(np.random.randint(1, 10E3) * (1 + sii))
@@ -39,7 +39,7 @@ def computeSource(sii, Inp, patt=True):
 
     loc = [Lcll[sii], Lcww[sii], 1 + H]
     #  Slip pattern definition
-    sucS = RR.setSlipPattern(loc, tapPL_G, None, LVumaxI[sii])#if randUmax:
+    sucS = RR.setSlipPattern(loc, tapPL_G, None)#if randUmax:
     #else: RR.setSlipPattern(loc, tapPL_G,umax )
 
     if sucS:
@@ -161,8 +161,6 @@ if __name__ == '__main__':
     LI = np.round(LDi[:, 0] / dll) * dll
     WI = np.round(LDi[:, 1] / dww) * dww
 
-    if randUmax: LVumaxI = 10**(0.1 * np.random.randn(nreal))
-    else: LVumaxI=None
     Lcll, Lcww = rg.computeVKParams(LI, WI, LMw, Sty)
     LcllVr = Lcll.copy()
     LcwwVr = Lcww.copy()
@@ -181,7 +179,7 @@ if __name__ == '__main__':
     LPoiL = np.repeat([PoiL], nreal, axis=0)
 
     Inp=(LMo, LI, WI, Lstri, Ldip, Lrake, Lcll, Lcww, LtrpI, LCVrrI, LcllVr, LcwwVr, dll, dww, PoiR_I, LPoiL, tapPL_G,
-        Vor, rnuc, Vfr, gbou, stRa, H, Hvr, cUTr, cVpVr, KtacM, vpkMax, limsVr, nmit, randUmax, addSSV, LVumaxI, Sty,
+        Vor, rnuc, Vfr, gbou, stRa, H, Hvr, cUTr, cVpVr, KtacM, vpkMax, limsVr, nmit, randUmax, addSSV, Sty,
          SuD, LMec, stdVr, dtt, foldS, sufi, randHyp)
     func = partial(computeSource, Inp=Inp, patt=True)
 

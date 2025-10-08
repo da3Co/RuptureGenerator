@@ -37,7 +37,7 @@ time = np.arange(0, 20, 1)  # dynamic plots times 30
 ffb = (0.01, 2.5)  # opt range black dash line
 
 levTo = np.linspace(0, 14, 15)
-levS = np.linspace(0, 4.0, 41)
+levS = np.linspace(0, 3.0, 41)
 levVpk = np.arange(0, 6.5, 0.1)
 levRVr = np.arange(0.1, 1.1, 0.01)
 levTr = np.arange(0, 8.1, 0.2)
