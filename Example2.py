@@ -115,7 +115,7 @@ if __name__ == '__main__':
     dll, dww = 400.0, 400.0  #  Grid spacing in the fault
     dtt = 1E-3  # Step time
     LMw = np.ones(nreal) * 6.5  # (np.log10(Mo) - 9.05) / 1.5
-    Sty = 'SD'  # 'SD'#'SS' #--> SS: Strike-Slip SD:Slip-Dip
+    Sty = 'DS'  # 'DS'#'SS' #--> SS: Strike-Slip DS:Dip-Slip
     SuD = 'CR'  # 'SS'#'CR' # SU #--> SS:'Strike-Slip' CR: Crustal-Dip SU: Subduction-Dip-Slip
     Mec = 'NS'  # Mechanism to find dip and rake randmolly. SS: Strike-Slip NS: Normal fault RS: Reverse fault
     sufi = 'Si_' #  Suffix names of the sources

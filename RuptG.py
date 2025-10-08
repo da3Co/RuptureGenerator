@@ -44,7 +44,7 @@ def computeGeometryParams(Mw, Sty, SuD, randLW, fa=1.15, th=2.5, mar=1.1):
     '''
     Thingbaijam et al., 2017
     :param Mw: -float-
-    :param Sty: -string- Style of the source SS: Strike-Slip SD:Slip-Dip
+    :param Sty: -string- Style of the source SS: Strike-Slip DS:Dip-Slip
     :param SuD: -string- Type of slip-dip fault SS:'Strike-Slip' CR: Crustal-Dip SU: Subduction-Dip-Slip
     :param randLW: -boolean- Allow L and W randomness
     :param fa: complete length per effective length ratio
@@ -69,7 +69,7 @@ def computeGeometryParams(Mw, Sty, SuD, randLW, fa=1.15, th=2.5, mar=1.1):
         else:
             WI = W_I
 
-    elif Sty == 'SD':
+    elif Sty == 'DS':
         if SuD == 'CR':
             L_I = fa * 10 ** (-2.693 + 0.614 * Mw)
             W_I = fa * 10 ** (-1.669 + 0.435 * Mw)
@@ -254,7 +254,7 @@ def computeVKParams(LI, WI, LMw, Sty, th=2.5):
     :param LI: -array- Length of each realization
     :param WI: -array- Width of each realization
     :param LMw: -array- Magnitude earthquake
-    :param Sty: -string- Style of the source SS: Strike-Slip SD:Slip-Dip
+    :param Sty: -string- Style of the source SS: Strike-Slip DS:Dip-Slip
     :param th: -float- threshold to keep a realization in terms of std, outside of it the value is remplaced
     :return:
     '''
@@ -268,7 +268,7 @@ def computeVKParams(LI, WI, LMw, Sty, th=2.5):
         Lcll = 2 * np.pi * np.mean([10**(-2.928 + 0.588 * LMw), 1.855 + 0.341*LI*1E-3,
                                 -4.870 + 0.741*WI*1E-3], axis=0) * 1E3
         Lcll *= 10 ** (var * 0.19)
-    elif Sty =='SD':
+    elif Sty =='DS':
         Lcll = 2 * np.pi * np.mean([10 ** (-2.433 + 0.492 * LMw), 1.096 + 0.314 * LI * 1E-3,
                                     1.832 + 0.449 * WI * 1E-3], axis=0) * 1E3
         Lcll *= 10 ** (var * 0.14)
@@ -441,7 +441,7 @@ class Rupture(object):
         :param L: -float- Length in the strike direction in meters
         :param W: -float- Width in the dip direction in meters
         :param index: -int- Source Index
-        :param Sty: -String- Type of fault (--> SS: Strike-Slip, SD:Slip-Dip)
+        :param Sty: -String- Type of fault (--> SS: Strike-Slip, DS:Dip-Slip)
         :param SuD: -String- Type of fault2 (--> SS or None: Strike-Slip CR: Crustal-Dip SLip SU: Subduction-Dip)
         :param Mec: -String- Type of fault3 (--> SS or None: Strike-Slip NS: Normal Slip RS: Reverse)
         '''
@@ -451,8 +451,10 @@ class Rupture(object):
         self.Mw = (np.log10(Mo)-9.05)/1.5
         self.index = index
         if Sty=='SS': self.Sty = (Sty, Sty, Sty)
-        elif Sty=='SD':
+        elif Sty=='DS':
             self.Sty = (Sty, SuD, Mec)
+        elif not Sty is None:
+            print('The fault style is not defined')
 
     def computeSmallScaleVar(self, timi):
         '''
@@ -681,7 +683,7 @@ class Rupture(object):
 
                 alphaZ = 0.626
                 betaZ = 3.921
-            elif self.Sty[0] == 'SD':
+            elif self.Sty[0] == 'DS':
                 alphaM = 2.216
                 betaM = 0.623
 
@@ -760,7 +762,7 @@ class Rupture(object):
                 hist[hist == 0] = 1 / self.Slip.size
                 bb = 0.5 * (bins[1:] + bins[:-1])
 
-                if self.Sty[0] == 'SD' and self.Sty[1] != 'CR':
+                if self.Sty[0] == 'DS' and self.Sty[1] != 'CR':
                     Tpdf = gamma.pdf(hzz, alphaZ, loc=0, scale=betaZ)
                 else:
                     Tpdf = weibull_min.pdf(hzz, betaZ, loc=0, scale=alphaZ)

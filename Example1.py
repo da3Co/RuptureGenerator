@@ -7,14 +7,14 @@ Mw = 7.0  # Magnitude
 L = 45E3#55*1E3  # Length in the strike direction
 W = 35E3#45*1E3  # Width in the dip direction
 strike, dip, Arake = 75, 65, 100  # Strike, Dip, and average rake respectively
-dll, dww = 200, 200  # Size in strike (dll) and dip (dww) directions of the sub-faults
+dll, dww = 400, 400  # Size in strike (dll) and dip (dww) directions of the sub-faults
 PoiR_I = np.asarray([0.5, 1.0])  # Relative location of a fix point (reference the left down corner)
 PoiL = np.asarray([0, 0, -6.2E3])  # Absolute location of PoiR
 VsU=3200 # Uniform Shear velocity (Vs) for the fault
 RhoU=2750 # Uniform Density (Rho) for the fault
 CVrr_I = 0.75  # Average rupture velocity coefficient with respect Vs
 
-Sty = 'SD'  # 'SD'#'SS' #--> SS: Strike-Slip SD:Slip-Dip
+Sty = 'DS'  # 'SD'#'SS' #--> SS: Strike-Slip DS:Dip-Slip
 SuD = 'SU'  # 'SS'#'CR' # SU #--> SS:'Strike-Slip' CR: Crustal-Dip SLip SU: Subduction-Dip Slip
 regTr='M&H'#'Som'  # Regression for average rise time
 KtacM = 0.05  # Tpeak average
