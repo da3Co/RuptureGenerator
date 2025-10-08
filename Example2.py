@@ -24,7 +24,7 @@ def computeSource(sii, Inp, patt=True):
     :return: Creates a rupture process and write it to hdf5 files
     '''
 
-    (LMo, LI, WI, Lstri, Ldip, Lrake, Lcll, Lcww, LtrpI, LCVrrI, LcllVr, LcwwVr, dll, dww, PoiR_I, PoiL, tapPL_G,
+    (LMo, LI, WI, Lstri, Ldip, Lrake, Lcll, Lcww, LtrpI, LCVrrI, LcllVr, LcwwVr, dll, dww, PoiR_I, LPoiL, tapPL_G,
         Vor, rnuc, Vfr, gbou, stRa, H, Hvr, cUTr, cVpVr, KtacM, vpkMax, limsVr, nmit, randUmax, addSSV, Sty,
          SuD, LMec, stdVr, dtt, foldS, sufi, randHyp, LSty, LSuD, LMec) = Inp
 
