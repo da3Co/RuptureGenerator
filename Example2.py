@@ -26,7 +26,7 @@ def computeSource(sii, Inp, patt=True):
 
     (LMo, LI, WI, Lstri, Ldip, Lrake, Lcll, Lcww, LtrpI, LCVrrI, LcllVr, LcwwVr, dll, dww, PoiR_I, PoiL, tapPL_G,
         Vor, rnuc, Vfr, gbou, stRa, H, Hvr, cUTr, cVpVr, KtacM, vpkMax, limsVr, nmit, randUmax, addSSV, Sty,
-         SuD, LMec, stdVr, dtt, foldS, sufi, randHyp) = Inp
+         SuD, LMec, stdVr, dtt, foldS, sufi, randHyp, LSty, LSuD, LMec) = Inp
 
     np.random.seed(np.random.randint(1, 10E3) * (1 + sii))
     RR = rg.Rupture(LMo[sii], LI[sii], WI[sii], LSty[sii], LSuD[sii], LMec[sii], sii)
@@ -180,7 +180,7 @@ if __name__ == '__main__':
 
     Inp=(LMo, LI, WI, Lstri, Ldip, Lrake, Lcll, Lcww, LtrpI, LCVrrI, LcllVr, LcwwVr, dll, dww, PoiR_I, LPoiL, tapPL_G,
         Vor, rnuc, Vfr, gbou, stRa, H, Hvr, cUTr, cVpVr, KtacM, vpkMax, limsVr, nmit, randUmax, addSSV, Sty,
-         SuD, LMec, stdVr, dtt, foldS, sufi, randHyp)
+         SuD, LMec, stdVr, dtt, foldS, sufi, randHyp, LSty, LSuD, LMec)
     func = partial(computeSource, Inp=Inp, patt=True)
 
     #list(map(func, [0]))
