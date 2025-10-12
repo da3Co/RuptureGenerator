@@ -164,8 +164,8 @@ if __name__ == '__main__':
                         remove('axi_%d.sou' % ido)
                         # sys.stdout = sys.__stdout__
 
-                        axl += ayP[:, :int(tt.size // 2)]
-                        ayl += axP[:, :int(tt.size // 2)]
+                        axl += axP[:, :int(tt.size // 2)]
+                        ayl += ayP[:, :int(tt.size // 2)]
                         azl += azP[:, :int(tt.size // 2)]
 
                 sx += axl
