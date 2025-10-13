@@ -4,6 +4,10 @@
 da.castro790@uniandes.edu.co
 cite:
 Insitution: King Abdullah University of Science and Technology
+
+Please cite us:
+David Castro-Cruz, Paul Martin Mai, A new kinematic rupture generation technique and its application,
+Geophysical Journal International, Volume 243, Issue 3, December 2025, ggaf385, https://doi.org/10.1093/gji/ggaf385
 """
 
 import numpy as np
@@ -12,7 +16,7 @@ from scipy.optimize import fsolve, minimize
 from fteikpy import Eikonal2D
 from functools import partial
 import pickle
-import matplotlib.pyplot as plt
+#import matplotlib.pyplot as plt
 #import matplotlib as mpl
 #mpl.use('TkAgg')  # interactive mode works with this, pick one
 
@@ -830,10 +834,10 @@ class Rupture(object):
             Ra = VKfield2D([self.cll, self.cww, self.H], self.Dks, self.Dkd, EphaseRa)
             Ra[np.unravel_index(np.argsort(Ra.flatten()), Ra.shape)] = np.sort(D_Ra.rvs(size=Ra.size))
             Ra += an
-            self.rakes = Ra
+            self.rakes = Ra  # in radians
             self.phaseRakes = theta0
         else:
-            self.rakes = an*np.ones(self.Dll.shape)
+            self.rakes = an*np.ones(self.Dll.shape)  # in radians
 
     def setRiseTimePattern(self, loc, tacM, trp, cUTr=None, vpkMax=6.5, cmax=4000, lTapSlp=0.8, TrZo=None):
         '''
@@ -1000,37 +1004,39 @@ class Rupture(object):
             resW = minimize(costWVr, np.asarray([1, 1]), args=(1-limsVr[1], CVrr, stdVr + 0.01 * (ccVr + 2)))
             coo = not (resW.success)
             ccVr += 1
-        self.D_Vr = weibull_min(resW.x[0], loc=1-limsVr[1], scale=resW.x[1])
-
-        succ = False
-        ccVr = -1
-        eta=np.linspace(0, 3, cmax+1)
-        F1 = VKfield2D(loc, self.Dks, self.Dkd, np.exp(self.phaseSlip * 1j))
-        while not(succ) and ccVr < cmax:
-            ccVr += 1
-            theta0 = np.random.rand(self.Dks.shape[0], self.Dkd.shape[1]) * 2 * np.pi
-            theta0[0, 0] = 0.0
-            Ephase = np.exp(theta0 * 1j)
-
-            FI=VKfield2D(loc, self.Dks, self.Dkd, Ephase)
+        if not(coo):
+            self.D_Vr = weibull_min(resW.x[0], loc=1-limsVr[1], scale=resW.x[1])
 
             succ = False
-            cc=-1
-            while not(succ) and cc<3:
-                cc=cc+1
-                Dvv = eta[ccVr]*F1*(-1)**cc+FI*(-1)**(cc//2)
-                Dvv[np.unravel_index(np.argsort(Dvv.flatten()), Dvv.shape)] = np.sort(self.D_Vr.rvs(size=Dvv.size))
+            ccVr = -1
+            eta=np.linspace(0, 3, cmax+1)
+            F1 = VKfield2D(loc, self.Dks, self.Dkd, np.exp(self.phaseSlip * 1j))
+            while not(succ) and ccVr < cmax:
+                ccVr += 1
+                theta0 = np.random.rand(self.Dks.shape[0], self.Dkd.shape[1]) * 2 * np.pi
+                theta0[0, 0] = 0.0
+                Ephase = np.exp(theta0 * 1j)
 
-                Dvv = ZoDvR*ZoDv * (1 - Dvv)
-                Dvv[Dvv < limsVr[0]] = limsVr[0]
-                VrrF = Dvv * self.Vs
+                FI=VKfield2D(loc, self.Dks, self.Dkd, Ephase)
 
-                cmt = np.corrcoef(self.vpk.flatten(), VrrF.flatten())[0, 1]
-                if cmt > cVpVr[0] and cmt < cVpVr[1]:
-                    self.Vr = VrrF
-                    self.setOnsetTimes()
-                    succ = np.sum(self.To + self.Trise * 1.2 > maxT) / self.To.size < 0.01
-        succ = ccVr < cmax
+                succ = False
+                cc=-1
+                while not(succ) and cc<3:
+                    cc=cc+1
+                    Dvv = eta[ccVr]*F1*(-1)**cc+FI*(-1)**(cc//2)
+                    Dvv[np.unravel_index(np.argsort(Dvv.flatten()), Dvv.shape)] = np.sort(self.D_Vr.rvs(size=Dvv.size))
+
+                    Dvv = ZoDvR*ZoDv * (1 - Dvv)
+                    Dvv[Dvv < limsVr[0]] = limsVr[0]
+                    VrrF = Dvv * self.Vs
+
+                    cmt = np.corrcoef(self.vpk.flatten(), VrrF.flatten())[0, 1]
+                    if cmt > cVpVr[0] and cmt < cVpVr[1]:
+                        self.Vr = VrrF
+                        self.setOnsetTimes()
+                        succ = np.sum(self.To + self.Trise * 1.2 > maxT) / self.To.size < 0.01
+            succ = ccVr < cmax
+        else: succ= False
         return succ
 
     def setRuptVelocHF(self, CVrr, stdVr, loc, phaseI, gbou=1000, Vfr=0.4, limsVr=None, maxT = 1E10,

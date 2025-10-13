@@ -14,9 +14,10 @@ VsU=3200 # Uniform Shear velocity (Vs) for the fault
 RhoU=2750 # Uniform Density (Rho) for the fault
 CVrr_I = 0.75  # Average rupture velocity coefficient with respect Vs
 
-Sty = 'DS'  # 'SD'#'SS' #--> SS: Strike-Slip DS:Dip-Slip
-SuD = 'SU'  # 'SS'#'CR' # SU #--> SS:'Strike-Slip' CR: Crustal-Dip SLip SU: Subduction-Dip Slip
-regTr='M&H'#'Som'  # Regression for average rise time
+Sty = 'DS'  # --> SS: Strike-Slip DS:Dip-Slip
+SuD = 'SU'  # --> SS:'Strike-Slip' CR: Crustal-Dip SLip SU: Subduction-Dip Slip
+regTr='M&H'#'Som'  # Regression for average rise time 'Som': Somerville et al. (1999), 'Miy': Miyake et al, 2003
+#                'M&H':  # Melgar and Hayes, 2003, 'Gus': Gusev and Chebrov, 2019
 KtacM = 0.05  # Tpeak average
 dtt=1E-2  # Step time
 foldS='Results/Example1/Sources/'

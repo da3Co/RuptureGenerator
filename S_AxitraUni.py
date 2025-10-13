@@ -59,8 +59,8 @@ if __name__ == '__main__':
     Spp = np.loadtxt('geo/1DLA.txt', skiprows=1, delimiter=',')  # Geology 1D Layer
     top = 0.0  # Surface level
     fmax = 2.5  # Maximal frequency
-    folSsL = 'Results/Example2/Sources/'  # Folder where Sources are
-    fols = 'Results/Example2/Records/'  # Output folder
+    folSsL = 'Results/Example1/Sources/'  # Folder where Sources are
+    fols = 'Results/Example1/Records/'  # Output folder
     campo = 2.5  # Hanning window in the tail
     sufS = 'sta_%d'  # Suffix stations
     fcon = 'Sdone.txt'  # File to store axitra information
