@@ -2,10 +2,9 @@
 """
 @author: David Alejandro Castro Cruz
 da.castro790@uniandes.edu.co
-cite:
-Insitution: King Abdullah University of Science and Technology
+Institution: King Abdullah University of Science and Technology
 
-Please cite us:
+Please cite our work as follows:
 David Castro-Cruz, Paul Martin Mai, A new kinematic rupture generation technique and its application,
 Geophysical Journal International, Volume 243, Issue 3, December 2025, ggaf385, https://doi.org/10.1093/gji/ggaf385
 """
@@ -16,7 +15,7 @@ from scipy.optimize import fsolve, minimize
 from fteikpy import Eikonal2D
 from functools import partial
 import pickle
-#import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt
 #import matplotlib as mpl
 #mpl.use('TkAgg')  # interactive mode works with this, pick one
 
@@ -822,6 +821,12 @@ class Rupture(object):
         self.To = tooF - np.min(tooF) + sh
 
     def setRakesVariations(self, stRa=0.2617993877991494, rand=True):
+        '''
+
+        :param stRa: standard deviation of the rake variation
+        :param rand: boolean if use variations in the rake, or use constant rake
+        :return:
+        '''
         an=np.radians(self.Arake)
         if rand:
             D_Ra = norm(loc=0, scale=stRa)
@@ -831,7 +836,7 @@ class Rupture(object):
             theta0[0, 0] = 0.0
             EphaseRa = np.exp(theta0 * 1j)
 
-            Ra = VKfield2D([self.cll, self.cww, self.H], self.Dks, self.Dkd, EphaseRa)
+            Ra = VKfield2D([self.cll, self.cww, 1+self.H], self.Dks, self.Dkd, EphaseRa)
             Ra[np.unravel_index(np.argsort(Ra.flatten()), Ra.shape)] = np.sort(D_Ra.rvs(size=Ra.size))
             Ra += an
             self.rakes = Ra  # in radians
@@ -839,6 +844,23 @@ class Rupture(object):
         else:
             self.rakes = an*np.ones(self.Dll.shape)  # in radians
 
+    def setRakesVariationsHF(self, phaseI, stRa=0.2617993877991494, rand=True):
+        an=np.radians(self.Arake)
+        if rand:
+            D_Ra = norm(loc=0, scale=stRa)
+
+            #  Rake variations
+            theta0 = np.random.rand(self.Dks.shape[0], self.Dkd.shape[1]) * 2 * np.pi
+            theta0[0, 0] = 0.0
+            EphaseRa = np.exp(theta0 * 1j) * (1 - self.F) + phaseI * self.F
+
+            Ra = VKfield2D([self.cll, self.cww, 1+self.H], self.Dks, self.Dkd, EphaseRa)
+            Ra[np.unravel_index(np.argsort(Ra.flatten()), Ra.shape)] = np.sort(D_Ra.rvs(size=Ra.size))
+            Ra += an
+            self.rakes = Ra  # in radians
+            self.phaseRakes = theta0
+        else:
+            self.rakes = an*np.ones(self.Dll.shape)  # in radians
     def setRiseTimePattern(self, loc, tacM, trp, cUTr=None, vpkMax=6.5, cmax=4000, lTapSlp=0.8, TrZo=None):
         '''
 
@@ -856,6 +878,9 @@ class Rupture(object):
 
         self.trp = trp  # average rise time
         self.vpkMax = vpkMax  # Maximal slip rate
+        self.cllTr = loc[0]
+        self.cwwTr = loc[1]
+        self.HTr = loc[2] - 1
         ccTr = 0
         succ = False
         eta = np.linspace(0, 4, cmax + 1)
@@ -923,6 +948,9 @@ class Rupture(object):
 
         self.trp = trp  # average rise time
         self.vpkMax = vpkMax  # Maximal slip rate
+        self.cllTr = loc[0]
+        self.cwwTr = loc[1]
+        self.HTr = loc[2]-1
         if cUTr is None: cUTr = [0.50, 0.90]
         ccTr = -1
         val=True
@@ -981,7 +1009,10 @@ class Rupture(object):
         if limsVr is None: limsVr=[0.002, 1]
         #  Rupture propagation
         self.aVrr = CVrr  # Average ratio Vr/Vs
-        self.locVr = loc
+        self.cllVr = loc[0]
+        self.cwwVr = loc[1]
+        self.HVr = loc[2]-1
+        self.stdVr = stdVr
         ZoDvR = np.ones(self.Vs.shape)
         R = np.sqrt((self.Dll - self.Dll[self.hypo]) ** 2 + (self.Dww - self.Dww[self.hypo]) ** 2)
         res = R < rnuc
@@ -1034,6 +1065,7 @@ class Rupture(object):
                     if cmt > cVpVr[0] and cmt < cVpVr[1]:
                         self.Vr = VrrF
                         self.setOnsetTimes()
+                        self.phaseVr=theta0
                         succ = np.sum(self.To + self.Trise * 1.2 > maxT) / self.To.size < 0.01
             succ = ccVr < cmax
         else: succ= False
@@ -1061,7 +1093,10 @@ class Rupture(object):
         if limsVr is None: limsVr=[0.002, 1]
         #  Rupture propagation
         self.aVrr = CVrr  # Average ratio Vr/Vs
-        self.locVr = loc
+        self.cllVr = loc[0]
+        self.cwwVr = loc[1]
+        self.HVr = loc[2] - 1
+        self.stdVr = stdVr
 
         ZoDv = np.ones(self.Vs.shape)
         res = self.Dll < gbou
@@ -1114,8 +1149,9 @@ class Rupture(object):
         :param loc: [float, float, float] [lengtCorrelation strike, lengtCorrelation dip, 1+Hurts exponent]
         :param tapPL_G:  Tapper definition at each edge [-x,+x,-y,+y] default (None): [0.15, 0.15, 0.15, 0.15]
         :param umax: float, maximal slip, None it computes from a regresion on average slip
-        :param vumax: float, variation of the regression for umax
-        :return: if a Slip patter was solved
+        :param randUmax: float, variation of the regression for umax
+        :return: if a Slip patter was solved (bool)
+        assign a slip pattern to self.Slip
         '''
         if tapPL_G is None: tapPL_G = np.asarray([0.15, 0.15, 0.15, 0.15])
 
@@ -1187,6 +1223,11 @@ class Rupture(object):
         return succ
 
     def writePickle(self, filS):
+        '''
+
+        :param filS: name of file to store the information
+        :return:
+        '''
         self.file_name=filS
         with open(self.file_name, "wb") as file_handle:
             pickle.dump(self, file_handle)
