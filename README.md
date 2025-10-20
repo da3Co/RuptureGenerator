@@ -31,12 +31,19 @@ Structure of the Object Rupture:
 Each object Rupture, coded in RupG.py possesses several attributes to define the rupture process. The main values are:
 
 Ruptures.LocalMo: it stores the local moment source time function at each sub fault. For optimization, this variable store lists on the format (nl, nw). nl and nw are the number of subfaults in the strike direction and in the dip direction respectively. Each sub fault spot contains None if in the sub fault has slip of zero. If the rupture activates the sub fault, inside there are two lists, one containing the index of the time when the subfault starts (tii) and when the subfault finishes (tff). The second list contains the vector of the moment source time function between the times Rupture.timiT[tii:tff]
+
 Rupture.timiT: Time vector for the entire fault.
+
 Rupture.Slip: A np.array containing the slip values at each sub fault (nl, nw)
+
 Ruptures.Trise: A np.array containing Rise time values at each sub fault (nl, nw)
+
 Ruptures.Vr: A np.array containing Rupture velocity at each sub fault (nl, nw)
+
 Ruptures.To: A np.array containing Onset time values at each sub fault (nl, nw)
+
 Ruptures.rakes: A np.array containing  Rakes values at each sub fault (nl, nw)
+
 Rupture.Pos: Matrix showing in metric coordinates the location of each sub fault, first dimension indicates the coordinates x, y, and z. The second and third dimensions select the location of the sub fault in the plane (3, nl, nw)
 
 Rupture.Mo: Seismic moment
