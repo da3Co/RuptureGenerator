@@ -21,7 +21,6 @@ Ground Motion Simulation
 
   The S_AxitraMult.py script runs the generated ruptures using Axitra to compute ground motions at multiple locations.
 
-
 We are glad if you use this code or methodology in your research, please cite the following publication:
 David Castro-Cruz, Paul Martin Mai, A new kinematic rupture generation technique and its application, Geophysical Journal International, Volume 243, Issue 3, December 2025, ggaf385, https://doi.org/10.1093/gji/ggaf385 
 
@@ -47,13 +46,21 @@ Ruptures.rakes: A np.array containing  Rakes values at each sub fault (nl, nw)
 Rupture.Pos: Matrix showing in metric coordinates the location of each sub fault, first dimension indicates the coordinates x, y, and z. The second and third dimensions select the location of the sub fault in the plane (3, nl, nw)
 
 Rupture.Mo: Seismic moment
-Rupture.Mw: Moment magnitude
-Rupture.L: Length in strike direction
-Rupture.W: width in the dip direction
-Rupture.dll: size of the sub fault in the strike direction
-Rupture.dww: size of the sub fault in the dip direction
-Rupture.strike: strike  in Degrees
-Rupture.dip: Dip in Degrees
-Rupture.Arake: Average rake in Degrees
-Ruptures.chyo: index of the hypocenter
 
+Rupture.Mw: Moment magnitude
+
+Rupture.L: Length in strike direction
+
+Rupture.W: width in the dip direction
+
+Rupture.dll: size of the sub fault in the strike direction
+
+Rupture.dww: size of the sub fault in the dip direction
+
+Rupture.strike: strike  in Degrees
+
+Rupture.dip: Dip in Degrees
+
+Rupture.Arake: Average rake in Degrees
+
+Ruptures.chyo: index of the hypocenter
